@@ -5,10 +5,11 @@ import numpy as np
 
 # Q1 handles the exploratory analysis of the specific utterance requested in the HW.
 def Q1():
-    # Part A
-    audio_rel_path = Path("assets") / "dev-clean" / "dev-clean" / "84" / "121123" / "84-121123-0000.flac"
+    """Inspect the reference utterance with waveform, STFT, and MFCC views."""
+    # Locate utterance 84-121123-0000 within the assets tree.
+    audio_rel_path = Path("assets") / "dev-clean" / "LibriSpeech" / "dev-clean" / "84" / "121123" / "84-121123-0000.flac"
     audio_path = Path(__file__).resolve().parent / audio_rel_path
-    # Load the file with its native sampling rate and expose basic statistics.
+    # Load at native sampling rate and report basic stats.
     print("loading audio file")
     y, sr = librosa.load(audio_path, sr=None)
     print(f"Loaded audio: {audio_path}")
@@ -18,8 +19,7 @@ def Q1():
     print(f"max amp.: {y.max():.6f} [FS]")
     print(f"min amp.: {y.min():.6f} [FS]")
     
-    # Part B
-    # Time-domain plot of the waveform (librosa helper kept commented if not available).
+    # Plot waveform in the time domain.
     plt.figure(figsize=(12, 3))
     librosa.display.waveshow(y, sr=sr, x_axis="time")
     plt.title("Waveform")
@@ -43,7 +43,7 @@ def Q1():
     plt.show()
 
     # Part D
-    # 13 MFCC coefficients extracted with the same analysis parameters.
+    # 40 MFCC coefficients extracted with the same analysis parameters.
     plt.figure(figsize=(12, 3))
     mfcc = librosa.feature.mfcc(
     y=y, sr=sr, n_mfcc=40,
@@ -59,14 +59,15 @@ def Q1():
 
 # Q2 orchestrates the speaker-gender classification experiment with MFCC vs. pitch features.
 def Q2():
+    """Train/test SVM gender classifiers on MFCC means vs. basic pitch stats."""
     gender_map = parse_speakers_txt(SPEAKERS_TXT)
     
     speakers = [s for s in find_speakers_in_subsets(ROOT, SUBSETS) if s in gender_map]
 
-    # There should be 80 speakers (40+40); proceed with those we found:
+    # Expect 80 balanced speakers (40F/40M) across the subsets.
     genders = np.array([gender_map[s] for s in speakers])
 
-    # Stratified speaker split: 64 train / 16 test (~20%)
+    # Stratified speaker split: 64 train / 16 test (~20%).
     splitter = StratifiedShuffleSplit(n_splits=1, test_size=16, random_state=RNG_SEED)
     train_idx, test_idx = next(splitter.split(np.array(speakers), genders))
     spk_train = [speakers[i] for i in train_idx]
@@ -82,17 +83,17 @@ def Q2():
         {g: list(np.array([gender_map[s] for s in spk_test])).count(g) for g in ("M", "F")},
     )
 
-    # ---- Build datasets (utterance-level samples; labels are speaker gender) ----
-    print("\nExtracting MFCC-mean features...")  # mean across frames creates a per-utterance vector
+    # ---- Build datasets (utterance-level samples labeled by speaker gender) ----
+    print("\nExtracting MFCC-mean features...")
     Xtr_mfcc, ytr, _ = build_dataset_for_speakers(spk_train, gender_map, "mfcc", max_utts_per_speaker=20)
     Xte_mfcc, yte, _ = build_dataset_for_speakers(spk_test, gender_map, "mfcc", max_utts_per_speaker=20)
 
-    print("Extracting YIN pitch-stat features...")  # capture basic F0 statistics per utterance
+    print("Extracting YIN pitch-stat features...")
     Xtr_pitch, _, _ = build_dataset_for_speakers(spk_train, gender_map, "pitch", max_utts_per_speaker=20)
     Xte_pitch, _, _ = build_dataset_for_speakers(spk_test, gender_map, "pitch", max_utts_per_speaker=20)
 
     # ---- Train & evaluate: MFCC ----
-    # Standardize each feature set before training the same RBF-SVM for fair comparison.
+    # Standardize each feature set before the shared RBF-SVM.
     clf_mfcc = Pipeline(
         [
             ("scaler", StandardScaler()),
@@ -139,7 +140,7 @@ from pathlib import Path
 
 # --------- paths (edit ROOT if needed) ----------
 ROOT = Path.cwd() / "HW1" / "assets"  # folder that contains dev-clean, dev-test and SPEAKERS.TXT
-SUBSETS = [r"dev-clean/dev-clean", r"test-clean/test-clean"]
+SUBSETS = [r"dev-clean/LibriSpeech/dev-clean", r"test-clean/LibriSpeech/test-clean"]
 SPEAKERS_TXT = os.path.join(ROOT, "SPEAKERS.TXT")
 RNG_SEED = 42
 random.seed(RNG_SEED); np.random.seed(RNG_SEED)
