@@ -1,0 +1,26 @@
+=== MFCC-mean SVM ===
+Accuracy: 0.909375
+[[133  27]
+ [  2 158]]
+              precision    recall  f1-score   support
+
+           F      0.854     0.988     0.916       160
+           M      0.985     0.831     0.902       160
+
+    accuracy                          0.909       320
+   macro avg      0.920     0.909     0.909       320
+weighted avg      0.920     0.909     0.909       320
+
+
+=== Pitch-stats SVM ===
+Accuracy: 0.928125
+[[143  17]
+ [  6 154]]
+              precision    recall  f1-score   support
+
+           F      0.901     0.963     0.931       160
+           M      0.960     0.894     0.926       160
+
+    accuracy                          0.928       320
+   macro avg      0.930     0.928     0.928       320
+weighted avg      0.930     0.928     0.928       320
