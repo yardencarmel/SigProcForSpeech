@@ -10,10 +10,12 @@ import rir_generator as rir
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality, ShortTimeObjectiveIntelligibility, ScaleInvariantSignalDistortionRatio
 from scipy.signal import fftconvolve
 
-# Add denoiser to path
-sys.path.append(os.path.join(os.getcwd(), 'denoiser'))
+import shutil
+import urllib.request
+from pathlib import Path
 
 # --- 1. Constants & Configuration ---
+BASE_DIR = Path(__file__).resolve().parent
 ROOM_DIMS = [4, 5, 3]  # meters
 FS = 16000
 MICS_NUM = 5
@@ -23,18 +25,18 @@ SOURCE_POS_RTF = [2 + 1.5 * np.cos(np.deg2rad(30)), 1 + 1.5 * np.sin(np.deg2rad(
 INTERFERENCE_POS = [2 + 2 * np.cos(np.deg2rad(150)), 1 + 2 * np.sin(np.deg2rad(150)), 1.7] # 150 deg, 2m
 T60_VALUES = [0.15, 0.3] # seconds
 SNR_VALUES = [0, 10] # dB
-OUTPUT_DIR = 'output'
-DATA_DIR = 'data'
+OUTPUT_DIR = BASE_DIR / 'output'
+DATA_DIR = BASE_DIR / 'data'
+MODEL_PATH = BASE_DIR / "dns64-a7761ff99a7d5bb6.th"
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
+DATA_DIR.mkdir(exist_ok=True, parents=True)
 
 # --- 2. Helper Functions ---
 
 def generate_rir(t60, room_dims, mic_pos, source_pos, fs=FS):
     c = 340
     # Sabine formula approximation or just input t60 to rir_generator
-    # rir_generator accepts reverberation_time.
-    # We also need nsample. T60 * fs is a good length.
     nsample = int(t60 * fs) if t60 > 0 else 4096
     
     # rir_generator expects numpy arrays
@@ -185,17 +187,11 @@ def delay_and_sum(signals, rir_ref):
     for i in range(MICS_NUM):
         d = delays[i]
         sig = signals[i]
-        # If ch i lags behind ref (d > 0), we must ADVANCE it (shift left, negative index) to align.
-        # But wait. If RIR peak is at T+d. Ref is T.
-        # To align T+d to T, we shift left by d.
-        # np.roll(x, -d) shifts left.
         
-        # What if d < 0? Ch i leads ref. To align T-d to T, we shift right by |d|.
-        # np.roll(x, -d) works (since -d is positive).
-        
+        # Align signal by shifting contrary to delay
         s_aligned = np.roll(sig, -d)
         
-        # Zeroing out the wrap-around part
+        # Zero padding to handle wrap-around from roll
         if d > 0:
             s_aligned[-d:] = 0
         elif d < 0:
@@ -242,7 +238,6 @@ def mvdr_beamformer(noisy_signals, noise_only_signals):
              Py = Phi_YY[f]
              
              # GEVD: Phi_YY v = lambda Phi_NN v
-             # max eigenvector of Phi_NN^-1 Phi_YY
              mat = torch.linalg.solve(Pn, Py)
              
              w, v = torch.linalg.eig(mat)
@@ -279,19 +274,22 @@ def mvdr_beamformer(noisy_signals, noise_only_signals):
 
 # --- 4. Deep Learning ---
 def load_model(name="dns64"):
-    from denoiser.demucs import Demucs
+    # Rely on installed denoiser package
+    try:
+        from denoiser.demucs import Demucs
+    except ImportError:
+        print("Error: 'denoiser' package not found. Please install it (e.g. pip install denoiser)")
+        sys.exit(1)
     
     url = "https://dl.fbaipublicfiles.com/adiyoss/denoiser/dns64-a7761ff99a7d5bb6.th"
-    model_path = "dns64-a7761ff99a7d5bb6.th"
-    if not os.path.exists(model_path):
-        import urllib.request
+    if not MODEL_PATH.exists():
         print(f"Downloading model {name}...")
-        urllib.request.urlretrieve(url, model_path)
+        urllib.request.urlretrieve(url, MODEL_PATH)
         
-    # dns64 uses hidden=64, sample_rate=16000
+    # dna64 uses hidden=64, sample_rate=16000
     model = Demucs(hidden=64, sample_rate=16000)
     
-    pkg = torch.load(model_path, map_location='cpu')
+    pkg = torch.load(MODEL_PATH, map_location='cpu')
     
     # Check if it's a package or direct state dict
     if isinstance(pkg, dict) and 'model' in pkg:
@@ -306,21 +304,15 @@ def load_model(name="dns64"):
 def enhance_dl(model, noisy_signal):
     if model is None: return noisy_signal
     
+    # Ensure tensor
     if isinstance(noisy_signal, np.ndarray):
         noisy_signal = torch.from_numpy(noisy_signal)
         
-    noisy_signal = noisy_signal.float() # Ensure float32
-    
-    # Normalize? Usually Demucs expects reasonable amplitude.
-    # We should normalize input, process, and denormalize? 
-    # Or just pass as is.
+    noisy_signal = noisy_signal.float()
     
     x = noisy_signal
     if x.ndim == 1:
-        x = x.unsqueeze(0).unsqueeze(0)
-        
-    pad = 0
-    # Demucs might require specific length mult? 
+        x = x.unsqueeze(0).unsqueeze(0) 
     
     with torch.no_grad():
         out = model(x)
@@ -329,10 +321,13 @@ def enhance_dl(model, noisy_signal):
 
 # --- Main ---
 def main():
-    files = glob.glob(os.path.join(DATA_DIR, '*.flac'))
+    # Expect data to be present in DATA_DIR (copied from HW1)
+    files = list(DATA_DIR.glob('*.flac'))
     if not files:
-        print("No speech files found!")
-        return
+        print(f"No speech files found in {DATA_DIR}! Please copy files from HW1.")
+        sys.exit(1)
+        
+    print(f"Found {len(files)} files.")
 
     mic_pos = get_mic_array_pos(MIC_CENTER, MICS_NUM, MIC_DIST)
     source_pos = np.array(SOURCE_POS_RTF)
@@ -363,7 +358,8 @@ def main():
                 
                 for f_idx, file_path in enumerate(proc_files):
                     # 1. Gen Signals
-                    mics_sig, src_sig = create_signals(file_path, rir_speech)
+                    # Ensure file_path is string for sf.read if needed, or pass Path (sf supports Path usually)
+                    mics_sig, src_sig = create_signals(str(file_path), rir_speech)
                     
                     # 2. Noise
                     if noise_type == 'gaussian':
@@ -389,8 +385,8 @@ def main():
                     # Q1: Plots/Wav (First condition only)
                     if f_idx == 0 and t60 == 0.3 and snr == 10 and noise_type == 'gaussian':
                          # Save
-                         sf.write(f"{OUTPUT_DIR}/q1_clean_mic1.wav", clean_first, FS)
-                         sf.write(f"{OUTPUT_DIR}/q1_noisy_mic1_gaussian.wav", noisy_mics[0], FS)
+                         sf.write(OUTPUT_DIR / "q1_clean_mic1.wav", clean_first, FS)
+                         sf.write(OUTPUT_DIR / "q1_noisy_mic1_gaussian.wav", noisy_mics[0], FS)
                          
                          plt.figure(figsize=(10, 8))
                          plt.subplot(3,1,1)
@@ -405,7 +401,7 @@ def main():
                          plt.title("Noisy Mic 1")
                          plt.plot(noisy_mics[0])
                          plt.tight_layout()
-                         plt.savefig(f"{OUTPUT_DIR}/q1_plot_time.png")
+                         plt.savefig(OUTPUT_DIR / "q1_plot_time.png")
                          plt.close()
                          
                          plt.figure(figsize=(10, 8))
@@ -419,7 +415,7 @@ def main():
                          plt.title("Spec Noisy Mic 1")
                          plt.specgram(noisy_mics[0], Fs=FS)
                          plt.tight_layout()
-                         plt.savefig(f"{OUTPUT_DIR}/q1_plot_freq.png")
+                         plt.savefig(OUTPUT_DIR / "q1_plot_freq.png")
                          plt.close()
 
                     # Processors
@@ -430,18 +426,8 @@ def main():
                     for k in m: metrics_accum[k].append(m[k])
                     
                     if f_idx == 0 and t60 == 0.3 and snr == 10:
-                        # mvdr_out is (C, T) or (1, T)? 
-                        # mvdr_beamformer returns output from istft.
-                        # istft: (B, C, T) or (C, T)? 
-                        # My istft helper: return torch.istft(...).numpy()
-                        # torch.istft(Z) where Z is (F, Frames). return (T,).
-                        # Let's check my mvdr_beamformer impl.
-                        # Z[f] = matmul(1xM, MxT) -> 1xT
-                        # istft(Z) -> Time domain.
-                        # If Z is (F, T), istft is (T,).
-                        # So mvdr_out is likely (T,) or (1, T) depending on unsqueeze.
-                        # It is (T,).
-                        sf.write(f"{OUTPUT_DIR}/q2_mvdr_out_{noise_type}.wav", mvdr_out, FS)
+                        # Save MVDR output for inspection
+                        sf.write(OUTPUT_DIR / f"q2_mvdr_out_{noise_type}.wav", mvdr_out, FS)
                         
                     # DL
                     dl_out = enhance_dl(dl_model, noisy_mics[0])
@@ -449,7 +435,7 @@ def main():
                     for k in m_dl: dl_metrics_accum[k].append(m_dl[k])
                     
                     if f_idx == 0 and t60 == 0.3 and snr == 10:
-                        sf.write(f"{OUTPUT_DIR}/q3_dl_out_{noise_type}.wav", dl_out, FS)
+                        sf.write(OUTPUT_DIR / f"q3_dl_out_{noise_type}.wav", dl_out, FS)
 
                 # Summarize
                 res_row = {'T60': t60, 'SNR': snr, 'Noise': noise_type}
@@ -462,7 +448,7 @@ def main():
     # Write Report
     with open("results_report.md", "w") as f:
         f.write("# HW2 Results Report\n\n")
-        f.write("| T60 | SNR | Noise | MVDR_PESQ | MVDR_ESTOI | MVDR_SI-SDR | DL_PESQ | DL_ESTOI | DL_SI-SDR |\n")
+        f.write("| Reverberation (T60) [s] | SNR [dB] | Noise Type | MVDR PESQ | MVDR ESTOI | MVDR SI-SDR | DL PESQ | DL ESTOI | DL SI-SDR |\n")
         f.write("|---|---|---|---|---|---|---|---|---|\n")
         for r in results:
             line = f"| {r['T60']} | {r['SNR']} | {r['Noise']} | {r['MVDR_PESQ']:.3f} | {r['MVDR_ESTOI']:.3f} | {r['MVDR_SI-SDR']:.3f} | {r['DL_PESQ']:.3f} | {r['DL_ESTOI']:.3f} | {r['DL_SI-SDR']:.3f} |\n"

@@ -1,5 +1,5 @@
 *venv/
 assets/
-*.flac
-*.wav
+HW1/*.flac
+HW1/*.wav
 *.th

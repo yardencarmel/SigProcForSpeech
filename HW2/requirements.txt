@@ -1,0 +1,12 @@
+torch
+torchaudio
+numpy
+matplotlib
+rir-generator
+torchmetrics
+scipy
+soundfile
+pesq
+pystoi
+denoiser
+
