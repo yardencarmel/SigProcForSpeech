@@ -23,11 +23,10 @@ MICS = np.array([
 
 SOURCE_X_RANGE = [1, 4]
 SOURCE_Y_RANGE = [1, 5]
-SOURCE_Z = 1.5  # Assumed same height as mics if not specified
 SOURCE_Z = 1.5
 
 # Grid for Heatmaps (20x20)
-GRID_RES = 100
+GRID_RES = 20
 X_GRID = np.linspace(SOURCE_X_RANGE[0], SOURCE_X_RANGE[1], GRID_RES)
 Y_GRID = np.linspace(SOURCE_Y_RANGE[0], SOURCE_Y_RANGE[1], GRID_RES)
 
@@ -85,7 +84,17 @@ def generate_signals(clean_signal, source_pos, room_dims, mics, t60, snr_db):
     mic_signals = np.array(mic_signals).T 
     
     # Add Noise
-    sig_pow = np.mean(mic_signals**2)
+    # Robust Signal Power: Active Speech Only
+    # Threshold: 1% of max amplitude (approx -40dB)
+    threshold = 0.01 * np.max(np.abs(mic_signals))
+    active_mask = np.abs(mic_signals) > threshold
+    
+    # If we have enough active samples, use them. Else fall back to mean.
+    if np.sum(active_mask) > 100:
+        sig_pow = np.mean(mic_signals[active_mask]**2)
+    else:
+        sig_pow = np.mean(mic_signals**2)
+        
     noise_pow = sig_pow / (10**(snr_db/10))
     noise = np.random.normal(0, np.sqrt(noise_pow), mic_signals.shape)
     
@@ -281,11 +290,11 @@ def run_q1(speech_file, source_pos):
     plt.legend()
     
     plt.tight_layout()
-    plt.savefig('q1_maps.png')
+    plt.savefig('HW3/q1_maps.png')
     plt.close()
     
     # Text summary append
-    with open("results.txt", "a") as f:
+    with open("HW3/results.txt", "a") as f:
         f.write(f"\n--- Q1 Results ---\n")
         f.write(f"True Source: {source_pos}\n")
         f.write(f"SRP-PHAT Est: {est_srp}, Error: {np.linalg.norm(est_srp - source_pos[:2]):.4f}\n")
@@ -354,7 +363,7 @@ def run_q2(speech_file, source_locations):
     plt.title('Localization Error vs Noise (T60=300ms)')
     plt.legend()
     plt.grid(True)
-    plt.savefig('q2_snr.png')
+    plt.savefig('HW3/q2_snr.png')
     plt.close()
     
     # 2. Error vs T60 (fixed SNR=15)
@@ -370,11 +379,11 @@ def run_q2(speech_file, source_locations):
     plt.title('Localization Error vs Reverberation (SNR=15dB)')
     plt.legend()
     plt.grid(True)
-    plt.savefig('q2_t60.png')
+    plt.savefig('HW3/q2_t60.png')
     plt.close()
     
     # Write stats
-    with open("results.txt", "a") as f:
+    with open("HW3/results.txt", "a") as f:
         f.write(f"\n--- Q2 Results (RMSE over {N_TRIALS} trials) ---\n")
         f.write("Scenario (SNR, T60) | SRP-PHAT RMSE | MUSIC RMSE\n")
         f.write("-" * 50 + "\n")
@@ -382,16 +391,16 @@ def run_q2(speech_file, source_locations):
             f.write(f"{p}           | {rmse_srp[p]:.4f}        | {rmse_music[p]:.4f}\n")
 
 if __name__ == "__main__":
+    # Ensure output dir
+    if not os.path.exists("HW3"):
+        os.makedirs("HW3")
+    
     # Clear previous results
-    with open("results.txt", "w") as f:
+    with open("HW3/results.txt", "w") as f:
         f.write("HW3 Simulation Results\n======================\n")
         
-    # Set working directory to the script's directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(script_dir)
-    
-    # Use local file in the same folder
-    audio_path = "speech.wav"
+    # Use local file in HW3 folder
+    audio_path = os.path.join("HW3", "speech.wav")
     
     if not os.path.exists(audio_path):
         if len(sys.argv) > 1:
@@ -404,17 +413,16 @@ if __name__ == "__main__":
     print(f"Using audio: {audio_path}")
     
     # Generate random locations for consistent testing
-    N_TRIALS = 30
+    N_TRIALS = 100
     source_locations = []
     for _ in range(N_TRIALS):
         sx = np.random.uniform(SOURCE_X_RANGE[0], SOURCE_X_RANGE[1])
         sy = np.random.uniform(SOURCE_Y_RANGE[0], SOURCE_Y_RANGE[1])
-        sz = np.random.uniform(0.1, ROOM_DIMS[2] - 0.1)
-        source_locations.append(np.array([sx, sy, sz]))
+        source_locations.append(np.array([sx, sy, 1.5]))
         
     # Run Q1 with the FIRST location from the set
     run_q1(audio_path, source_locations[0])
     
     # Run Q2 with the ALL locations
     run_q2(audio_path, source_locations)
-    print("Done. Results saved to results.txt and plots.")
+    print("Done. Results saved to HW3/results.txt and plots.")
