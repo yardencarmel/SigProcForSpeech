@@ -25,7 +25,7 @@ SOURCE_X_RANGE = [1, 4]
 SOURCE_Y_RANGE = [1, 5]
 SOURCE_Z = 1.5
 
-# Grid for Heatmaps (20x20)
+# Grid for Heatmaps (GRID_RESxGRID_RES)
 GRID_RES = 20
 X_GRID = np.linspace(SOURCE_X_RANGE[0], SOURCE_X_RANGE[1], GRID_RES)
 Y_GRID = np.linspace(SOURCE_Y_RANGE[0], SOURCE_Y_RANGE[1], GRID_RES)
@@ -33,6 +33,9 @@ Y_GRID = np.linspace(SOURCE_Y_RANGE[0], SOURCE_Y_RANGE[1], GRID_RES)
 # FFT parameters
 N_FFT = 256
 HOP_LEN = 128
+
+# Number of speaker locations for Question 2
+Q2_N_LOCATIONS = 30
 
 
 # --- Helper Functions ---
@@ -78,7 +81,7 @@ def generate_signals(clean_signal, source_pos, room_dims, mics, t60, snr_db):
     
     # Convolve each channel
     for i in range(M):
-        out = signal.fftconvolve(clean_signal, h[:, i], mode='full')
+        out = signal.fftconvolve(clean_signal, h[:, i], mode='same')
         mic_signals.append(out[:len(clean_signal)]) 
         
     mic_signals = np.array(mic_signals).T 
@@ -290,11 +293,14 @@ def run_q1(speech_file, source_pos):
     plt.legend()
     
     plt.tight_layout()
-    plt.savefig('HW3/q1_maps.png')
+    # Save plot to script directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    plt.savefig(os.path.join(script_dir, "q1_maps.png"))
     plt.close()
     
     # Text summary append
-    with open("HW3/results.txt", "a") as f:
+    results_path = os.path.join(script_dir, "results.txt")
+    with open(results_path, "a") as f:
         f.write(f"\n--- Q1 Results ---\n")
         f.write(f"True Source: {source_pos}\n")
         f.write(f"SRP-PHAT Est: {est_srp}, Error: {np.linalg.norm(est_srp - source_pos[:2]):.4f}\n")
@@ -363,7 +369,10 @@ def run_q2(speech_file, source_locations):
     plt.title('Localization Error vs Noise (T60=300ms)')
     plt.legend()
     plt.grid(True)
-    plt.savefig('HW3/q2_snr.png')
+    # Determine script dir locally if needed, or pass it. 
+    # For simplicity, calculate again or use robust path.
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    plt.savefig(os.path.join(script_dir, "q2_snr.png"))
     plt.close()
     
     # 2. Error vs T60 (fixed SNR=15)
@@ -379,11 +388,12 @@ def run_q2(speech_file, source_locations):
     plt.title('Localization Error vs Reverberation (SNR=15dB)')
     plt.legend()
     plt.grid(True)
-    plt.savefig('HW3/q2_t60.png')
+    plt.savefig(os.path.join(script_dir, "q2_t60.png"))
     plt.close()
     
     # Write stats
-    with open("HW3/results.txt", "a") as f:
+    results_path = os.path.join(script_dir, "results.txt")
+    with open(results_path, "a") as f:
         f.write(f"\n--- Q2 Results (RMSE over {N_TRIALS} trials) ---\n")
         f.write("Scenario (SNR, T60) | SRP-PHAT RMSE | MUSIC RMSE\n")
         f.write("-" * 50 + "\n")
@@ -391,31 +401,32 @@ def run_q2(speech_file, source_locations):
             f.write(f"{p}           | {rmse_srp[p]:.4f}        | {rmse_music[p]:.4f}\n")
 
 if __name__ == "__main__":
-    # Ensure output dir
-    if not os.path.exists("HW3"):
-        os.makedirs("HW3")
+    # Determine script directory for robust path handling
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    
+    # Define output file paths
+    results_path = os.path.join(SCRIPT_DIR, "results.txt")
     
     # Clear previous results
-    with open("HW3/results.txt", "w") as f:
+    with open(results_path, "w") as f:
         f.write("HW3 Simulation Results\n======================\n")
         
     # Use local file in HW3 folder
-    audio_path = os.path.join("HW3", "speech.wav")
+    audio_path = os.path.join(SCRIPT_DIR, "speech.wav")
     
     if not os.path.exists(audio_path):
         if len(sys.argv) > 1:
             audio_path = sys.argv[1]
         else:
-            print("Error: HW3/speech.wav not found. Please copy a wav file there or provide path.")
+            print(f"Error: {audio_path} not found. Please ensure speech.wav is in the same directory as the script.")
             sys.exit(1)
             
             
     print(f"Using audio: {audio_path}")
     
     # Generate random locations for consistent testing
-    N_TRIALS = 100
     source_locations = []
-    for _ in range(N_TRIALS):
+    for _ in range(Q2_N_LOCATIONS):
         sx = np.random.uniform(SOURCE_X_RANGE[0], SOURCE_X_RANGE[1])
         sy = np.random.uniform(SOURCE_Y_RANGE[0], SOURCE_Y_RANGE[1])
         source_locations.append(np.array([sx, sy, 1.5]))
@@ -425,4 +436,4 @@ if __name__ == "__main__":
     
     # Run Q2 with the ALL locations
     run_q2(audio_path, source_locations)
-    print("Done. Results saved to HW3/results.txt and plots.")
+    print(f"Done. Results saved to {results_path} and plots.")

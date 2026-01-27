@@ -1,0 +1,17 @@
+HW3 Simulation Results
+======================
+
+--- Q1 Results ---
+True Source: [1.34315326 3.58538566 1.5       ]
+SRP-PHAT Est: [1.15789474 3.73684211], Error: 0.2393
+MUSIC Est: [1.15789474 3.73684211], Error: 0.2393
+(Note: Both algorithms peaked at the same grid point, hence identical error.)
+
+--- Q2 Results (RMSE over 30 trials) ---
+Scenario (SNR, T60) | SRP-PHAT RMSE | MUSIC RMSE
+--------------------------------------------------
+(5, 0.3)           | 0.8219        | 0.8245
+(15, 0.3)           | 0.6798        | 0.5802
+(30, 0.3)           | 0.6004        | 0.5842
+(15, 0.15)           | 0.6142        | 0.5483
+(15, 0.55)           | 0.8716        | 0.7980
