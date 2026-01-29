@@ -1,0 +1,98 @@
+# F5-TTS Hebrew Fine-tuning Configuration
+# Based on F5TTS_Base.yaml with adjustments for Hebrew language
+#
+# Key differences from base config:
+# - tokenizer: custom (uses Hebrew vocab.txt)
+# - learning_rate: 1e-5 (lower for fine-tuning)
+# - num_warmup_updates: 1000 (shorter warmup for fine-tuning)
+# - batch_size: reduced for single GPU training
+
+hydra:
+  run:
+    dir: ckpts/${model.name}_hebrew_${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+# =============================================================================
+# Dataset Configuration
+# =============================================================================
+datasets:
+  name: Hebrew_Dataset                    # Dataset name (matches folder in data/)
+  batch_size_per_gpu: 3200                # Reduced for single GPU
+  batch_size_type: frame                  # frame | sample
+  max_samples: 32                         # Max sequences per batch
+  num_workers: 4                          # Adjust based on CPU cores
+
+# =============================================================================
+# Optimizer Configuration (Fine-tuning settings)
+# =============================================================================
+optim:
+  epochs: 50                              # Fine-tuning typically needs fewer epochs
+  learning_rate: 1e-5                     # Lower LR for fine-tuning (was 7.5e-5)
+  num_warmup_updates: 1000                # Shorter warmup (was 20000)
+  grad_accumulation_steps: 1              # Increase if GPU memory is limited
+  max_grad_norm: 1.0                      # Gradient clipping
+  bnb_optimizer: False                    # 8-bit optimizer (set True to save memory)
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  name: F5TTS_v1_Base                     # Base model architecture
+  tokenizer: custom                       # IMPORTANT: Use custom tokenizer for Hebrew
+  tokenizer_path: data/Hebrew_Dataset/vocab.txt  # Path to Hebrew vocabulary
+  backbone: DiT                           # DiT architecture
+  
+  arch:
+    dim: 1024                             # Model dimension
+    depth: 22                             # Number of transformer layers
+    heads: 16                             # Attention heads
+    ff_mult: 2                            # Feed-forward multiplier
+    text_dim: 512                         # Text embedding dimension
+    text_mask_padding: False
+    conv_layers: 4                        # Convolutional layers
+    pe_attn_head: 1                       # Positional encoding attention heads
+    attn_backend: torch                   # torch | flash_attn
+    attn_mask_enabled: False
+    checkpoint_activations: False         # Set True to save memory
+  
+  mel_spec:
+    target_sample_rate: 24000             # Audio sample rate
+    n_mel_channels: 100                   # Mel spectrogram channels
+    hop_length: 256
+    win_length: 1024
+    n_fft: 1024
+    mel_spec_type: vocos                  # vocos | bigvgan
+  
+  vocoder:
+    is_local: False                       # Use HuggingFace vocoder
+    local_path: null
+
+# =============================================================================
+# Checkpoint Configuration
+# =============================================================================
+ckpts:
+  logger: tensorboard                     # wandb | tensorboard | null
+  log_samples: True                       # Generate samples during training
+  save_per_updates: 10000                 # Save every N updates
+  keep_last_n_checkpoints: 5              # Keep last N checkpoints (-1 for all)
+  last_per_updates: 1000                  # Save "last" checkpoint frequency
+  save_dir: ckpts/${model.name}_hebrew
+
+# =============================================================================
+# Fine-tuning Specific Notes
+# =============================================================================
+# To run fine-tuning, use:
+#
+#   python F5-TTS/src/f5_tts/train/finetune_cli.py \
+#       --finetune \
+#       --exp_name F5TTS_v1_Base \
+#       --dataset_name Hebrew_Dataset \
+#       --tokenizer custom \
+#       --tokenizer_path data/Hebrew_Dataset/vocab.txt \
+#       --learning_rate 1e-5 \
+#       --epochs 50 \
+#       --batch_size_per_gpu 3200 \
+#       --save_per_updates 10000 \
+#       --logger tensorboard
+#
+# The --finetune flag automatically downloads pretrained weights.
+# For custom weights, use --pretrain /path/to/checkpoint.pt
