@@ -1,0 +1,8 @@
+What needs to be done:
+1. Read the article, understand thoroughly and its relation to past work.
+2. Demonstrate the method proposed via code, there's no need to reproduce all the experiments carried out in the paper.
+3. It is sufficient to reproduce only part of the results, you may also experiment on other data - as long as the results are similar to the ones presented in the paper.
+4. You need to critique the article, offer ideas to improve it and present carry them out as much as possible.
+5. If the paper already offers code available, it is expected to offer extensions and improvements beyond existing code.
+
+Good luck!

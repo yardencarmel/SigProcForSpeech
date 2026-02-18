@@ -1,0 +1,51 @@
+F5-TTS Hebrew Extension — Project TODO
+=======================================
+
+[V] Phase 1:  English zero-shot baseline (5 WAVs, results/phase1/english/)
+[V] Phase 1:  Hebrew pretrained baseline — garbled, motivates fine-tuning
+              (3 WAVs, results/phase1/hebrew_pretrained/)
+
+[V] Phase 2:  Sway Sampling ablation — reproduce paper Figure 3
+              s in {+0.4, 0.0, -0.4, -0.8, -1.0} x NFE in {8, 16, 32} x 3 sentences
+              (45 WAVs + results_metrics.csv, results/sway_sampling/)
+
+[V] Phase 2:  CFG strength ablation
+              cfg in {1.0, 1.5, 2.0, 2.5, 3.0} x 3 sentences
+              (15 WAVs + results_metrics.csv, results/cfg_strength/)
+
+[V] Phase 3:  Hebrew sentences with pretrained model — garbled, baseline
+              (3 WAVs, results/phase3_hebrew/)
+
+[V] Phase 3.5 data:   Hebrew dataset prepared
+              Mozilla Common Voice Hebrew (4059 samples, 5.06 h)
+              Arrow dataset at F5-TTS/data/Hebrew_Dataset_custom/
+
+[V] Phase 3.5 setup:  trainer.py patched for vocab size mismatch
+              Pretrained vocab [2546, 512] → Hebrew vocab [108, 512]
+              Shape-filtered state dict loading added to load_checkpoint()
+
+[V] Phase 4:  Emotion / style transfer — direct mel injection (working)
+              w in {0.0, 0.25, 0.5, 0.75, 1.0} + zero-shot baseline
+              (6 WAVs + results_metrics.csv, results/emotion_transfer/)
+
+[V] Phase 5:  Evaluation metrics computed for Phases 2 ablations
+              (WER via Whisper, SIM-o via WavLM, results_metrics.csv files)
+
+[V] Phase 5:  Plots generated (sway_sampling, cfg_strength, emotion_weight,
+              sway_pdf — results/plots/)
+
+[V] Phase 4 WER:  Re-run WER for emotion transfer outputs
+              (soundfile → numpy bypass for FFmpeg; Whisper large-v3-turbo on CPU)
+
+[ ] Phase 3.5 training:  Resume / restart Hebrew fine-tuning
+              - run_finetune.py is ready; trainer.py patched
+              - Needs ~14h on RTX 3080 for first usable checkpoint (~5k updates)
+              - model_last.pt saves every 100 updates for safe resume
+              - Launch: .venv/Scripts/python scripts/run_finetune.py
+
+[ ] Phase 3 (repeat):  Re-run Hebrew sentences with fine-tuned checkpoint
+              Compare against garbled pretrained output in results/phase3_hebrew/
+              Launch after a checkpoint exists in F5-TTS/ckpts/Hebrew_Dataset/
+
+[ ] Final write-up / report
+              extension_writeup.txt is a working draft; convert to report format
