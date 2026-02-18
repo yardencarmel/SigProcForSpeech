@@ -9,8 +9,6 @@ data/
 # Model checkpoints (large)
 ckpts/
 
-# Generated audio / experiment outputs
-results/
 
 # Python
 __pycache__/
