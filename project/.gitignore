@@ -1,0 +1,29 @@
+# Virtual environment
+.venv/
+venv/
+
+
+# Dataset files (large; not versioned)
+data/
+
+# Model checkpoints (large)
+ckpts/
+
+# Generated audio / experiment outputs
+results/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Secrets
+.env
+
+# Misc
+*.DS_Store
+*.swp
