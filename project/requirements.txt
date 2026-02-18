@@ -39,5 +39,9 @@ python-dotenv>=1.0.0          # Load environment variables from .env
 # Gradio for optional web interface
 gradio>=4.0.0
 
+# Evaluation
+openai-whisper               # WER via Whisper large-v3 (~3 GB download on first run)
+matplotlib>=3.7.0            # Result plots
+
 # Development tools (optional)
 tensorboard>=2.14.0

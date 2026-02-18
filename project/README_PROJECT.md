@@ -8,7 +8,81 @@ This project extends [F5-TTS](https://github.com/SWivid/F5-TTS) (Chen et al., AC
 
 2. **Improvement 2 — Hebrew Language Support**: Fine-tune F5-TTS on Mozilla Common Voice Hebrew, with a custom character-level tokenizer and text normalisation pipeline.
 
-See [`PLAN.txt`](PLAN.txt) for the full task checklist and current status.
+---
+
+## Quick Start (fresh clone)
+
+> Tested on Linux with Python 3.10+. A GPU is strongly recommended for inference and required for fine-tuning.
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/yardencarmel/SigProcForSpeech.git
+cd SigProcForSpeech/project
+```
+
+### 2. Create a virtual environment and install dependencies
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+
+# Install PyTorch — pick the right CUDA version for your GPU from https://pytorch.org
+# Example for CUDA 12.1:
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install all other dependencies
+pip install -r requirements.txt
+```
+
+> **Linux system dependency for `phonemizer`** (used by some TTS utilities):
+> ```bash
+> sudo apt-get install espeak-ng
+> ```
+
+### 3. Clone and install F5-TTS
+
+```bash
+git clone https://github.com/SWivid/F5-TTS.git
+pip install -e F5-TTS/
+```
+
+### 4. Verify the installation
+
+```bash
+python -c "
+from f5_tts.infer.utils_infer import load_model
+from f5_tts.model import DiT
+import torch
+print('f5_tts: OK')
+print('torch:', torch.__version__)
+print('CUDA:', torch.cuda.is_available())
+"
+```
+
+### 5. Get a reference audio
+
+You need a short (4–10 s), clean WAV recording of a single speaker for voice cloning. LibriSpeech samples work well. Save it as e.g. `samples/ref.wav`.
+
+### 6. Run the English baseline
+
+```bash
+python scripts/demo_english.py \
+    --ref_audio samples/ref.wav \
+    --outdir results/phase1/english
+```
+
+This generates 5 English sentences and saves them to `results/phase1/english/`. Listen to them to confirm the pipeline is working before attempting Hebrew.
+
+### 7. (Optional) Install evaluation dependencies
+
+```bash
+# Whisper for WER — downloads ~3 GB model on first run
+pip install openai-whisper
+
+# WavLM for speaker similarity — downloads ~1.3 GB on first run
+# (installed automatically via transformers, which is already in requirements.txt)
+```
 
 ---
 
@@ -46,18 +120,13 @@ Both improvements address this gap directly.
 
 ## Setup
 
-The `.venv` is already populated with the required packages. Activate it and install the F5-TTS source package:
+Follow the [Quick Start](#quick-start-fresh-clone) above for a complete walkthrough. In short:
 
 ```bash
-source .venv/bin/activate          # Linux / Mac
-
-git clone https://github.com/SWivid/F5-TTS.git
-pip install -e F5-TTS/
-```
-
-Verify:
-```bash
-python -c "from f5_tts.infer.utils_infer import load_model; print('OK')"
+python -m venv .venv && source .venv/bin/activate
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
+git clone https://github.com/SWivid/F5-TTS.git && pip install -e F5-TTS/
 ```
 
 ---
@@ -288,10 +357,9 @@ python scripts/evaluate.py --csv results/emotion_transfer/results.csv --metric a
 
 ```
 project/
-├── PLAN.txt                       # Task checklist with completion status
 ├── README_PROJECT.md              # This file
-├── requirements_hebrew.txt        # Python dependencies
-├── setup_project.py               # One-time environment setup helper
+├── requirements.txt               # Python dependencies
+├── setup_project.py               # One-time environment setup helper (legacy)
 ├── configs/
 │   └── train_hebrew.yaml          # Fine-tuning hyperparameters
 ├── scripts/
