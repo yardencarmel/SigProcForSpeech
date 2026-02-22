@@ -105,7 +105,11 @@ Both improvements address this gap directly.
 | Sway Sampling ablation (Phase 2) | Done |
 | CFG strength ablation (Phase 2) | Done |
 | Style transfer — mel injection (`run_phase4.py`) | Done |
-| Noise injection sweep (`run_noise_inject.py`) | Done |
+| Method A — SDEdit noise injection (`run_noise_inject.py`) | Done |
+| Method B — Style Guidance 2-pass ODE (`run_style_guidance.py`) | Ready to run |
+| Method C — Scheduled Conditioning (`run_scheduled_cond.py`) | Ready to run |
+| Method D — Noise Stats Transfer (`run_noise_stats.py`) | Ready to run |
+| Cross-method comparison (`compare_methods.py`) | Ready (run after A–D) |
 | Metrics — WER / SIM-A / SIM-B / MCD | Done |
 | Plots | Done |
 
@@ -142,7 +146,7 @@ python scripts/run_phase4.py \
 
 `--identity` sets the voice; `--emotion` sets the style. The `--weight` parameter (0–1) controls the blend.
 
-### Noise-injection style transfer
+### Method A — SDEdit noise injection
 
 ```bash
 python scripts/run_noise_inject.py \
@@ -153,7 +157,58 @@ python scripts/run_noise_inject.py \
     --sways -1.0 -0.4 0.0
 ```
 
-Sweeps over noise levels (alpha) and sway coefficients. Results go to `results/noise_inject/`.
+Biases the ODE starting point: `x_0 = (1-α)*randn + α*mel_B`, then integrates
+conditioned on mel_A. Results go to `results/noise_inject/`.
+
+### Method B — Style Guidance (2-pass ODE extrapolation)
+
+```bash
+python scripts/run_style_guidance.py \
+    --identity path/to/identity_speaker.wav \
+    --emotion  path/to/style_speaker.wav \
+    --guidance_scales 0.0 0.5 1.0 1.5 2.0 \
+    --sways -1.0 0.0
+```
+
+Runs the transformer twice per ODE step (identity + style) and extrapolates:
+`vf = vf_A + guidance_scale * (vf_B - vf_A)`. Results go to `results/style_guidance/`.
+
+### Method C — Scheduled Conditioning Blend
+
+```bash
+python scripts/run_scheduled_cond.py \
+    --identity path/to/identity_speaker.wav \
+    --emotion  path/to/style_speaker.wav \
+    --switch_points 0.0 0.25 0.5 0.75 1.0 \
+    --sways -1.0 0.0
+```
+
+Switches conditioning from mel_B to mel_A at a programmable ODE time `t*`:
+early steps (t < t*) use style B, late steps use identity A. Results go to
+`results/scheduled_cond/`.
+
+### Method D — Noise Statistics Transfer
+
+```bash
+python scripts/run_noise_stats.py \
+    --identity path/to/identity_speaker.wav \
+    --emotion  path/to/style_speaker.wav \
+    --noise_levels 0.0 0.1 0.2 0.3 0.5 0.7 \
+    --sways -1.0 0.0
+```
+
+Rescales starting noise to match mel_B's global statistics (mean, std) without
+copying specific frames. Results go to `results/noise_stats/`.
+
+### Cross-method comparison (run after all methods)
+
+```bash
+python scripts/compare_methods.py --methods A B C D
+```
+
+Reads `results_metrics.csv` from each method, generates comparison plots
+(trends, scatter, WER-vs-SIM-B), a combined CSV, and a mathematical chapter.
+Results go to `results/comparison/`.
 
 ---
 
@@ -179,10 +234,19 @@ Runs as part of Phase 2 (above). Sweeps `cfg ∈ {1.0, 1.5, 2.0, 2.5, 3.0}`.
 python scripts/run_phase4.py   # sweeps w in {0.0, 0.25, 0.50, 0.75, 1.00}
 ```
 
-### Noise injection sweep
+### Noise injection sweep (Method A)
 
 ```bash
 python scripts/run_noise_inject.py   # sweeps alpha × sway (18 total runs)
+```
+
+### Extended sweeps (Methods B, C, D)
+
+```bash
+python scripts/run_style_guidance.py   # guidance_scale × sway (10 runs)
+python scripts/run_scheduled_cond.py   # switch_point × sway (10 runs)
+python scripts/run_noise_stats.py      # alpha × sway (12 runs)
+python scripts/compare_methods.py      # aggregates all results
 ```
 
 ---
@@ -236,7 +300,11 @@ project/
 ├── scripts/
 │   ├── run_all_phases.py          # Phases 1+2+5: baseline, ablations, eval
 │   ├── run_phase4.py              # Style transfer: direct mel injection
-│   ├── run_noise_inject.py        # Noise-injection style transfer sweep
+│   ├── run_noise_inject.py        # Method A — SDEdit noise injection sweep
+│   ├── run_style_guidance.py      # Method B — 2-pass ODE style guidance
+│   ├── run_scheduled_cond.py      # Method C — Scheduled conditioning blend
+│   ├── run_noise_stats.py         # Method D — Noise statistics transfer
+│   ├── compare_methods.py         # Cross-method comparison plots + CSV
 │   ├── compute_noise_inject_metrics.py  # Metrics for pre-generated audio
 │   └── finalize_noise_inject.py   # Parse log → CSV + plot
 ├── F5-TTS/                        # Cloned F5-TTS repo (gitignored)
@@ -248,7 +316,11 @@ project/
     ├── sway_sampling/             # 45 WAVs + results_metrics.csv
     ├── cfg_strength/              # 15 WAVs + results_metrics.csv
     ├── emotion_transfer/          # 6 WAVs + results_metrics.csv + plot
-    ├── noise_inject/              # 18 WAVs + results_metrics.csv + plot
+    ├── noise_inject/              # 18 WAVs + results_metrics.csv + plot  (Method A)
+    ├── style_guidance/            # 10 WAVs + results_metrics.csv + plot  (Method B)
+    ├── scheduled_cond/            # 10 WAVs + results_metrics.csv + plot  (Method C)
+    ├── noise_stats/               # 12 WAVs + results_metrics.csv + plot  (Method D)
+    ├── comparison/                # combined_metrics.csv + comparison plots
     └── plots/                     # sway_sampling, cfg_strength, emotion_weight, sway_pdf
 ```
 
@@ -267,7 +339,7 @@ generated, _ = model.sample(cond=mel_blend, ...)   # 3D → used directly
 
 Using `model.mel_spec` to compute the mels ensures the conditioning tensor is in exactly the representation the model was trained on (same normalisation, hop length, etc.), keeping the blend in-distribution for the Transformer.
 
-### Improvement 2 — Noise-Injection Style Transfer (SDEdit)
+### Method A — SDEdit Noise Injection
 
 Instead of blending the conditioning signal, we bias the ODE *starting point*:
 
@@ -275,7 +347,39 @@ Instead of blending the conditioning signal, we bias the ODE *starting point*:
 x_0 = (1 - alpha) * randn_like(mel) + alpha * mel_B
 ```
 
-The ODE then integrates from `t_start = alpha` to `t = 1`, conditioned throughout on the identity mel A. This is analogous to SDEdit's "noise-level inversion": higher alpha means more of B's structure survives into the output, trading off identity preservation for style injection. Unlike conditioning injection, the identity reference (mel A) is never blended — it drives the model's attention entirely. The interplay with sway sampling (which concentrates ODE steps near `t = 0`) is a key experimental variable.
+The ODE then integrates from `t_start = alpha` to `t = 1`, conditioned throughout on mel_A.
+
+### Method B — Style Guidance (2-Pass ODE Extrapolation)
+
+At each ODE step the transformer is evaluated twice — once under mel_A, once under mel_B — and the results are linearly extrapolated:
+
+```
+vf = vf_A + guidance_scale * (vf_B - vf_A)
+```
+
+guidance_scale=0 reproduces the identity baseline; guidance_scale>1 extrapolates beyond the style reference. Structurally identical to classifier-free guidance but along the identity→style axis.
+
+### Method C — Scheduled Conditioning Blend
+
+A step function switches the conditioning from mel_B (style) to mel_A (identity) at ODE time `t*`:
+
+```
+cond(t) = mel_B  if t < t*   # style drives coarse spectral structure
+cond(t) = mel_A  if t ≥ t*   # identity refines fine details
+```
+
+Single-pass (same cost as baseline). switch_point=0 → pure identity; switch_point=1 → pure style.
+
+### Method D — Noise Statistics Transfer
+
+A statistics-only variant of Method A: instead of blending mel_B frames into x_0, only the global mean and standard deviation of mel_B are transferred:
+
+```
+x_0 = (randn / randn.std()) * target_std + alpha * mel_B.mean()
+target_std = alpha * mel_B.std() + (1 - alpha) * randn.std()
+```
+
+The temporal structure of mel_B is never copied — only its amplitude envelope.
 
 ---
 

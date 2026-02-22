@@ -31,5 +31,30 @@ F5-TTS Noise Injection — Project TODO
 [ ] Noise injection plots:  regenerate noise_inject_sweep.png if needed
               Run: .venv/Scripts/python scripts/finalize_noise_inject.py
 
+[ ] Method A extended sweep (finer grid):
+              alpha in {0.05, 0.10, 0.15, ..., 0.70} x sway in {-1.0 to +1.0 step 0.1}
+              Run: .venv/Scripts/python scripts/run_noise_inject.py \
+                     --noise_levels 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 \
+                     --sways -1.0 -0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+              Then create alpha x sway table of WER and SIM-B to identify best transfer parameters
+
+[ ] Method B — Style Guidance sweep:
+              guidance_scale in {0.0, 0.5, 1.0, 1.5, 2.0} x sway in {-1.0, 0.0}
+              Run: .venv/Scripts/python scripts/run_style_guidance.py
+
+[ ] Method C — Scheduled Conditioning sweep:
+              switch_point in {0.0, 0.25, 0.5, 0.75, 1.0} x sway in {-1.0, 0.0}
+              Run: .venv/Scripts/python scripts/run_scheduled_cond.py
+
+[ ] Method D — Noise Statistics Transfer sweep:
+              alpha in {0.0, 0.1, 0.2, 0.3, 0.5, 0.7} x sway in {-1.0, 0.0}
+              Run: .venv/Scripts/python scripts/run_noise_stats.py
+
+[ ] Cross-method comparison:
+              Run after all methods complete:
+              .venv/Scripts/python scripts/compare_methods.py
+              Outputs: results/comparison/comparison_plot.png + combined_metrics.csv + math_chapter.md
+
 [ ] Final write-up / report
               extension_writeup.txt is a working draft; convert to report format
+              Use math_chapter.md from compare_methods.py as basis for Method B/C/D sections
