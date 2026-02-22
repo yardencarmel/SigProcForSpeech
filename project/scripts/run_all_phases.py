@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
-Comprehensive end-to-end pipeline for the F5-TTS Hebrew Extension project.
+End-to-end pipeline for the F5-TTS Acoustic Style Transfer project.
 
 Runs all phases using the current F5-TTS API (v1, OmegaConf-based loading):
-  Phase 1  — English baseline & Hebrew-pretrained baseline
+  Phase 1  — English baseline
   Phase 2  — Sway Sampling ablation + CFG ablation (reproduce paper results)
-  Phase 3  — Hebrew dataset demo (pretrained model on Hebrew text)
-  Phase 4  — Emotion / style transfer (mel-space blending)
+  Phase 4  — Style transfer (mel-space blending)
   Phase 5  — Evaluate (WER, SIM-o, MCD) + plots
 
 Usage:
     .venv/Scripts/python scripts/run_all_phases.py \
-        --ref_audio samples/common_voice_he_38078769.wav \
+        --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav \
         --outdir results
 """
 
@@ -122,9 +121,9 @@ def infer(ref_wav, ref_txt, gen_txt, model, vocoder, device,
 # ---------------------------------------------------------------------------
 
 def parse_args():
-    p = argparse.ArgumentParser(description="F5-TTS Hebrew Project — full pipeline")
+    p = argparse.ArgumentParser(description="F5-TTS Acoustic Style Transfer — full pipeline")
     p.add_argument("--ref_audio", "-r", required=True,
-                   help="Reference WAV file for voice cloning (Hebrew speaker)")
+                   help="Reference WAV file for voice cloning")
     p.add_argument("--ref_text", default="",
                    help="Transcription of ref_audio (leave blank to auto-transcribe)")
     p.add_argument("--outdir", "-o", default="results",
@@ -132,13 +131,13 @@ def parse_args():
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--skip_existing", action="store_true")
-    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 3, 4, 5],
+    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 4, 5],
                    help="Which phases to run (default: all)")
     return p.parse_args()
 
 
 # ---------------------------------------------------------------------------
-# Phase 1 — English baseline + Hebrew pretrained baseline
+# Phase 1 — English baseline
 # ---------------------------------------------------------------------------
 
 ENGLISH_SENTENCES = [
@@ -149,38 +148,17 @@ ENGLISH_SENTENCES = [
     ("en05", "The conference will be held in San Francisco next month, and registration is now open."),
 ]
 
-HEBREW_PRETRAINED_SENTENCES = [
-    ("he01", "שלום עולם, איך הולך לך היום?"),
-    ("he02", "ירושלים היא עיר עתיקה ויפה מאוד."),
-    ("he03", "המחקר מראה תוצאות מעניינות בתחום עיבוד השפה הטבעית."),
-]
-
-
 def run_phase1(model, vocoder, ref_audio, ref_text, outdir, device, seed):
     print("\n" + "="*60)
-    print("PHASE 1: English baseline + Hebrew pretrained baseline")
+    print("PHASE 1: English baseline")
     print("="*60)
 
-    # 1.2 English
     en_dir = Path(outdir) / "phase1" / "english"
     en_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n[1.2] English zero-shot TTS -> {en_dir}")
+    print(f"\n[1.1] English zero-shot TTS -> {en_dir}")
     for sent_id, text in ENGLISH_SENTENCES:
         out_path = en_dir / f"{sent_id}.wav"
         print(f"  Generating: {text[:55]}...")
-        audio, sr = infer(ref_audio, ref_text, text, model, vocoder, device,
-                          nfe_step=32, seed=seed)
-        sf.write(str(out_path), audio, sr)
-        print(f"  -> {out_path}  ({len(audio)/sr:.2f}s)")
-
-    # 1.3 Hebrew (pretrained — expected garbled)
-    he_dir = Path(outdir) / "phase1" / "hebrew_pretrained"
-    he_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n[1.3] Hebrew with PRETRAINED (EN+ZH) model -> {he_dir}")
-    print("  (Expected: garbled/incoherent — motivates fine-tuning)")
-    for sent_id, text in HEBREW_PRETRAINED_SENTENCES:
-        out_path = he_dir / f"{sent_id}.wav"
-        print(f"  Generating: {text}")
         audio, sr = infer(ref_audio, ref_text, text, model, vocoder, device,
                           nfe_step=32, seed=seed)
         sf.write(str(out_path), audio, sr)
@@ -279,36 +257,6 @@ def run_phase2(model, vocoder, ref_audio, ref_text, outdir, device, seed, skip_e
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — Hebrew sentences (pretrained model, will be garbled)
-# ---------------------------------------------------------------------------
-
-HEBREW_TEST_SENTENCES = [
-    ("he_test01", "שלום, מה שלומך היום?"),
-    ("he_test02", "ירושלים היא בירת ישראל ועיר קדושה לשלוש דתות."),
-    ("he_test03", "המצב הפך לבלתי נסבל לחלוטין."),
-]
-
-
-def run_phase3(model, vocoder, ref_audio, ref_text, outdir, device, seed):
-    print("\n" + "="*60)
-    print("PHASE 3: Hebrew sentences (pretrained model)")
-    print("="*60)
-
-    he_dir = Path(outdir) / "phase3_hebrew"
-    he_dir.mkdir(parents=True, exist_ok=True)
-
-    for sid, text in HEBREW_TEST_SENTENCES:
-        out_path = he_dir / f"{sid}.wav"
-        print(f"  Generating: {text}")
-        audio, sr = infer(ref_audio, ref_text, text, model, vocoder, device,
-                          nfe_step=32, seed=seed)
-        sf.write(str(out_path), audio, sr)
-        print(f"  -> {out_path}  ({len(audio)/sr:.2f}s)")
-
-    print("\n[Phase 3 complete]")
-
-
-# ---------------------------------------------------------------------------
 # Phase 4 — Emotion / style transfer (mel-space blending)
 # ---------------------------------------------------------------------------
 
@@ -384,27 +332,6 @@ def run_phase4(model, vocoder, ref_audio_id, ref_text_id,
         rows.append({
             "emotion_weight": w,
             "gen_text": gen_text,
-            "output_wav": str(out_path),
-            "identity_ref": ref_audio_id,
-            "emotion_ref": ref_audio_em,
-            "wer": "", "sim_o": "", "mcd": "",
-        })
-
-    # Hebrew emotion transfer
-    print("\n  [Cross-lingual: Hebrew text + emotion ref]")
-    heb_text = "המצב הפך לבלתי נסבל לחלוטין."
-    for w in [0.35, 0.5]:
-        out_path = em_dir / f"he_emo_w{w:.2f}.wav"
-        print(f"  weight={w:.2f} Hebrew", end="  ")
-        eff_ref = make_emotion_ref_wav(ref_audio_id, ref_audio_em, w, vocoder, device)
-        audio, sr = infer(eff_ref, ref_text_id, heb_text, model, vocoder, device,
-                          nfe_step=32, seed=seed)
-        sf.write(str(out_path), audio, sr)
-        os.unlink(eff_ref)
-        print(f"({len(audio)/sr:.2f}s)")
-        rows.append({
-            "emotion_weight": w,
-            "gen_text": heb_text,
             "output_wav": str(out_path),
             "identity_ref": ref_audio_id,
             "emotion_ref": ref_audio_em,
@@ -579,8 +506,7 @@ def run_phase5(outdir, ref_audio, device):
         for row in rows:
             wav = row["output_wav"]
             if os.path.exists(wav):
-                lang = "he" if any(c > '\u0590' for c in row.get("gen_text", "")) else "en"
-                wer = compute_wer_whisper(wav, row["gen_text"], lang, device)
+                wer = compute_wer_whisper(wav, row["gen_text"], "en", device)
                 sim = compute_sim_wavlm(wav, ref_audio, device)
                 mcd = compute_mcd(wav, row["emotion_ref"])
                 row["wer"] = wer if wer is not None else ""
@@ -706,9 +632,6 @@ def run_plots(outdir):
             ws, sims, mcds = [], [], []
             for row in rows:
                 try:
-                    # Only English samples for fair comparison
-                    if any(c > '\u0590' for c in row.get("gen_text", "")):
-                        continue
                     w = float(row["emotion_weight"])
                     sim = float(row["sim_o"]) if row["sim_o"] else None
                     mcd = float(row["mcd"]) if row["mcd"] else None
@@ -766,9 +689,10 @@ def main():
     os.makedirs(args.outdir, exist_ok=True)
 
     ref_audio = str(Path(args.ref_audio).resolve())
-    # Use the second clip as emotion reference (different tone/speaker)
+    # Use the Mandarin clip as style reference (maximum acoustic contrast)
     ref_audio_emotion = str(
-        Path(PROJECT_DIR) / "samples" / "common_voice_he_38078770.wav"
+        Path(PROJECT_DIR) / "F5-TTS" / "src" / "f5_tts" / "infer"
+        / "examples" / "basic" / "basic_ref_zh.wav"
     )
     if not os.path.exists(ref_audio_emotion):
         ref_audio_emotion = ref_audio  # fallback
@@ -791,9 +715,6 @@ def main():
         sway_csv, cfg_csv = run_phase2(
             model, vocoder, ref_audio, ref_text, args.outdir, args.device,
             args.seed, args.skip_existing)
-
-    if 3 in args.phases:
-        run_phase3(model, vocoder, ref_audio, ref_text, args.outdir, args.device, args.seed)
 
     if 4 in args.phases:
         em_csv = run_phase4(

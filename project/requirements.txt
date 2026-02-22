@@ -1,8 +1,7 @@
-# F5-TTS Hebrew Extension
-# Requirements file for Hebrew language support
+# F5-TTS Acoustic Style Transfer Extension
+# Requirements file
 #
 # Base F5-TTS dependencies (will be installed via pip install -e F5-TTS)
-# Plus Hebrew-specific libraries
 
 # Core F5-TTS dependencies (these will be installed when cloning F5-TTS)
 torch>=2.0.0
@@ -20,10 +19,6 @@ safetensors
 hydra-core>=1.3.0
 omegaconf
 wandb
-
-# Hebrew-specific dependencies
-hebrew-tokenizer>=2.3.0      # Hebrew word segmentation
-phonemizer>=3.2.0            # G2P conversion with espeak backend
 
 # Audio processing
 librosa>=0.10.0

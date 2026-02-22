@@ -1,18 +1,18 @@
-# F5-TTS: Hebrew Extension with Cross-Lingual Emotion Transfer
+# F5-TTS: Acoustic Style Transfer via Mel Injection & Noise-Biased Generation
 
 **Signal Processing & Learning Methods for Speech — Final Project**
 
 This project extends [F5-TTS](https://github.com/SWivid/F5-TTS) (Chen et al., ACL 2025) in two directions motivated by limitations the paper itself acknowledges:
 
-1. **Improvement 1 — Emotion / Style Transfer**: Separate speaker identity from vocal style using two reference audios. Audio A sets the voice; Audio B sets the emotion. The implementation operates in mel-spectrogram space and supports cross-lingual transfer (e.g. English scream → Hebrew output).
+1. **Improvement 1 — Acoustic Style Transfer via Direct Mel Injection**: Blend two reference speaker mel spectrograms at inference time and inject the blend directly into the model's conditioning pathway. No retraining, no extra parameters.
 
-2. **Improvement 2 — Hebrew Language Support**: Fine-tune F5-TTS on Mozilla Common Voice Hebrew, with a custom character-level tokenizer and text normalisation pipeline.
+2. **Improvement 2 — Noise-Injection Style Transfer (SDEdit on Flow Matching)**: Bias the ODE starting point by mixing Gaussian noise with a style reference mel, while keeping the identity conditioning pure. Inspired by SDEdit's noise-level inversion principle.
 
 ---
 
 ## Quick Start (fresh clone)
 
-> Tested on Linux with Python 3.10+. A GPU is strongly recommended for inference and required for fine-tuning.
+> Tested on Linux with Python 3.10+. A GPU is strongly recommended for inference.
 
 ### 1. Clone the repo
 
@@ -62,17 +62,17 @@ print('CUDA:', torch.cuda.is_available())
 
 ### 5. Get a reference audio
 
-You need a short (4–10 s), clean WAV recording of a single speaker for voice cloning. LibriSpeech samples work well. Save it as e.g. `samples/ref.wav`.
+You need a short (4–10 s), clean WAV recording of a single speaker for voice cloning. The F5-TTS canonical examples (`F5-TTS/src/f5_tts/infer/examples/basic/`) work well and are used as defaults in all scripts.
 
 ### 6. Run the English baseline
 
 ```bash
-python scripts/demo_english.py \
-    --ref_audio samples/ref.wav \
-    --outdir results/phase1/english
+python scripts/run_all_phases.py \
+    --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav \
+    --phases 1
 ```
 
-This generates 5 English sentences and saves them to `results/phase1/english/`. Listen to them to confirm the pipeline is working before attempting Hebrew.
+This generates 5 English sentences and saves them to `results/phase1/english/`.
 
 ### 7. (Optional) Install evaluation dependencies
 
@@ -101,33 +101,13 @@ Both improvements address this gap directly.
 | Component | Status |
 |---|---|
 | F5-TTS cloned & installed | Done — `pip install -e F5-TTS/` |
-| Hebrew text normalisation (`hebrew_utils.py`) | Done |
-| Dataset preparation pipeline (`prepare_hebrew_dataset.py`) | Done — untested on real data |
-| Common Voice Hebrew download script | Done |
-| Fine-tuning config (`configs/train_hebrew.yaml`) | Done |
-| Hebrew fine-tuning (actual training run) | **Pending** — needs dataset |
-| Emotion transfer — mel-space blending (`run_emotion_transfer.py`) | Done |
-| English demo / baseline (`demo_english.py`) | Done — needs GPU run |
-| Hebrew pretrained baseline (`demo_hebrew_pretrained.py`) | Done — needs GPU run |
-| Sway Sampling ablation (`ablation_sway_sampling.py`) | Done — needs GPU run |
-| CFG strength ablation (`ablation_cfg.py`) | Done — needs GPU run |
-| Emotion weight ablation (`ablation_emotion_weight.py`) | Done — needs GPU run |
-| Evaluation metrics — WER / SIM-o / MCD (`evaluate.py`) | Done — needs audio outputs |
-| Results plots (`plot_results.py`) | Done — needs metrics CSV |
-| Quantitative results table | **Pending** |
-
----
-
-## Setup
-
-Follow the [Quick Start](#quick-start-fresh-clone) above for a complete walkthrough. In short:
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt
-git clone https://github.com/SWivid/F5-TTS.git && pip install -e F5-TTS/
-```
+| English baseline (Phase 1) | Done |
+| Sway Sampling ablation (Phase 2) | Done |
+| CFG strength ablation (Phase 2) | Done |
+| Style transfer — mel injection (`run_phase4.py`) | Done |
+| Noise injection sweep (`run_noise_inject.py`) | Done |
+| Metrics — WER / SIM-A / SIM-B / MCD | Done |
+| Plots | Done |
 
 ---
 
@@ -136,112 +116,44 @@ git clone https://github.com/SWivid/F5-TTS.git && pip install -e F5-TTS/
 ### English zero-shot baseline
 
 ```bash
-python scripts/demo_english.py \
+python scripts/run_all_phases.py \
     --ref_audio path/to/reference.wav \
-    --outdir results/phase1/english
+    --phases 1
 ```
 
-Generates 5 English samples to confirm the pipeline works before any Hebrew work.
+Generates 5 English samples to confirm the pipeline works.
 
-### Hebrew with pretrained model (expected to fail)
+### Sway Sampling + CFG ablations (reproduce paper results)
 
 ```bash
-python scripts/demo_hebrew_pretrained.py \
+python scripts/run_all_phases.py \
     --ref_audio path/to/reference.wav \
-    --outdir results/phase1/hebrew_pretrained
+    --phases 2
 ```
 
-Demonstrates that the pretrained (English + Chinese) model cannot handle Hebrew script, motivating fine-tuning.
-
-### Voice cloning (single reference)
+### Style transfer — direct mel injection
 
 ```bash
-python scripts/run_emotion_transfer.py \
-    --text "שלום, מה שלומך?" \
-    --ref_audio samples/speaker.wav \
-    --output output.wav
+python scripts/run_phase4.py \
+    --identity path/to/identity_speaker.wav \
+    --emotion  path/to/style_speaker.wav \
+    --text "The situation has become completely unacceptable."
 ```
 
-### Emotion / style transfer (dual reference)
+`--identity` sets the voice; `--emotion` sets the style. The `--weight` parameter (0–1) controls the blend.
+
+### Noise-injection style transfer
 
 ```bash
-python scripts/run_emotion_transfer.py \
-    --text "שלום, מה שלומך?" \
-    --ref_audio_identity samples/neutral_speaker.wav \
-    --ref_audio_emotion  samples/angry_voice.wav \
-    --emotion_weight 0.4 \
-    --output angry_output.wav
+python scripts/run_noise_inject.py \
+    --identity path/to/identity_speaker.wav \
+    --emotion  path/to/style_speaker.wav \
+    --text "The situation has become completely unacceptable." \
+    --noise_levels 0.0 0.1 0.2 0.3 0.5 0.7 \
+    --sways -1.0 -0.4 0.0
 ```
 
-`emotion_weight` is a continuous knob: `0.0` = pure identity, `1.0` = pure emotion. Values around `0.3–0.5` preserve recognisable identity while injecting style.
-
-### Cross-lingual emotion transfer (English emotion → Hebrew output)
-
-```bash
-python scripts/run_emotion_transfer.py \
-    --text "המצב הפך לבלתי נסבל לחלוטין." \
-    --ref_audio_identity samples/hebrew_speaker.wav \
-    --ref_audio_emotion  samples/english_scream.wav \
-    --emotion_weight 0.5 \
-    --output crosslingual_output.wav
-```
-
-This works because the mel spectrogram is purely acoustic — it carries no linguistic information — so an English emotion reference conditions generation the same way as a Hebrew one would.
-
----
-
-## Hebrew Fine-tuning
-
-### 1. Download the dataset
-
-```bash
-# Option A — automated via Mozilla Data Collective API
-#   Register at https://commonvoice.mozilla.org/he, generate API key, add to .env
-python scripts/download_dataset.py --extract
-
-# Option B — manual download
-#   Download cv-corpus-XX.0-2024-XX-XX-he.tar.gz from Common Voice
-#   Extract to data/raw/
-```
-
-### 2. Prepare the dataset
-
-```bash
-python scripts/prepare_hebrew_dataset.py \
-    --input data/raw/cv-corpus-*/he \
-    --format commonvoice \
-    --output data/Hebrew_Dataset
-```
-
-Outputs `data/Hebrew_Dataset/vocab.txt` and `data/Hebrew_Dataset/metadata.csv`.
-
-### 3. Fine-tune
-
-```bash
-python F5-TTS/src/f5_tts/train/finetune_cli.py \
-    --finetune \
-    --dataset_name Hebrew_Dataset \
-    --tokenizer custom \
-    --tokenizer_path data/Hebrew_Dataset/vocab.txt \
-    --learning_rate 1e-5 \
-    --epochs 50 \
-    --batch_size_per_gpu 3200 \
-    --logger tensorboard
-```
-
-See [`configs/train_hebrew.yaml`](configs/train_hebrew.yaml) for all hyperparameters.
-Minimum recommended data: ~10 hours of Hebrew audio. Common Voice Hebrew has ~70 hours.
-
-### 4. Inference with fine-tuned model
-
-```bash
-python scripts/run_emotion_transfer.py \
-    --text "ירושלים היא עיר עתיקה ויפה." \
-    --ref_audio samples/hebrew_speaker.wav \
-    --model_path ckpts/F5TTS_v1_Base_hebrew/model_XXXXX.pt \
-    --vocab_path data/Hebrew_Dataset/vocab.txt \
-    --output output_hebrew.wav
-```
+Sweeps over noise levels (alpha) and sway coefficients. Results go to `results/noise_inject/`.
 
 ---
 
@@ -250,47 +162,27 @@ python scripts/run_emotion_transfer.py \
 ### Sway Sampling (reproduces Figure 3 of the paper)
 
 ```bash
-python scripts/ablation_sway_sampling.py \
-    --ref_audio samples/ref_english.wav \
-    --outdir results/sway_sampling
-
-python scripts/evaluate.py \
-    --csv results/sway_sampling/results.csv \
-    --metric all --language en
-
-python scripts/plot_results.py \
-    --csv results/sway_sampling/results_metrics.csv \
-    --ablation sway --outdir results/plots
+python scripts/run_all_phases.py \
+    --ref_audio path/to/ref.wav \
+    --phases 2 5
 ```
 
 Sweeps `s ∈ {0.4, 0.0, -0.4, -0.8, -1.0}` × `NFE ∈ {8, 16, 32}`.
 
 ### CFG strength
 
-```bash
-python scripts/ablation_cfg.py \
-    --ref_audio samples/ref_english.wav \
-    --outdir results/cfg_strength
+Runs as part of Phase 2 (above). Sweeps `cfg ∈ {1.0, 1.5, 2.0, 2.5, 3.0}`.
 
-python scripts/evaluate.py --csv results/cfg_strength/results.csv --metric all
+### Style transfer weight (direct mel injection)
+
+```bash
+python scripts/run_phase4.py   # sweeps w in {0.0, 0.25, 0.50, 0.75, 1.00}
 ```
 
-### Emotion weight
+### Noise injection sweep
 
 ```bash
-python scripts/ablation_emotion_weight.py \
-    --ref_identity samples/neutral_speaker.wav \
-    --ref_emotion  samples/angry_voice.wav \
-    --text "The situation has become completely unacceptable." \
-    --outdir results/emotion_transfer
-
-python scripts/evaluate.py \
-    --csv results/emotion_transfer/results.csv \
-    --metric all --language en
-
-python scripts/plot_results.py \
-    --csv results/emotion_transfer/results_metrics.csv \
-    --ablation emotion --outdir results/plots
+python scripts/run_noise_inject.py   # sweeps alpha × sway (18 total runs)
 ```
 
 ---
@@ -299,57 +191,38 @@ python scripts/plot_results.py \
 
 | Metric | Tool | What it measures |
 |---|---|---|
-| WER | Whisper large-v3 | Faithfulness to text (lower = better) |
-| SIM-o | WavLM-large cosine similarity | Speaker identity preservation (higher = better) |
-| MCD | MFCC-based cepstral distortion | Acoustic closeness to emotion reference (lower = more style transferred) |
-
-```bash
-# Single file
-python scripts/evaluate.py \
-    --generated output.wav \
-    --reference ref_identity.wav \
-    --transcript "the text that was synthesised" \
-    --metric all --language he
-
-# Batch (from ablation CSV)
-python scripts/evaluate.py --csv results/emotion_transfer/results.csv --metric all
-```
+| WER | Whisper large-v3-turbo | Faithfulness to text (lower = better) |
+| SIM-o / SIM-A | WavLM-base-plus cosine similarity | Speaker identity preservation vs reference A (higher = better) |
+| SIM-B | WavLM-base-plus cosine similarity | Style acquisition vs reference B (higher = more style transferred) |
+| MCD | MFCC-based cepstral distortion | Acoustic distance from reference (lower = closer) |
 
 ---
 
 ## Results
 
-*To be filled in after running experiments.*
-
 ### Sway Sampling ablation
 
 | s | NFE | WER (%) | SIM-o |
 |---|---|---|---|
-| +0.4 | 32 | | |
-| 0.0 | 32 | | |
-| −0.4 | 32 | | |
-| −0.8 | 32 | | |
-| −1.0 | 32 | | |
-| −1.0 | 16 | | |
-| −1.0 | 8 | | |
+| +0.4 | 32 | 51.9 | 0.826 |
+| 0.0 | 32 | 3.7 | 0.836 |
+| −0.4 | 32 | 7.9 | 0.826 |
+| −0.8 | 32 | 0.0 | 0.784 |
+| −1.0 | 32 | 7.4 | 0.802 |
 
-### Emotion transfer ablation
+### Style transfer — direct mel injection
 
-| weight | SIM-o | MCD (dB) | WER (%) |
+| weight | WER (%) | SIM-o | MCD |
 |---|---|---|---|
-| 0.0 (identity only) | | | |
-| 0.2 | | | |
-| 0.3 | | | |
-| 0.5 | | | |
-| 0.7 | | | |
-| 1.0 (emotion only) | | | |
+| 0.00 | 0.0 | 0.893 | 726 |
+| 0.25 | 0.0 | 0.896 | 707 |
+| 0.50 | 15.0 | 0.833 | 870 |
+| 0.75 | 0.0 | 0.812 | 832 |
+| 1.00 | 0.0 | 0.811 | 919 |
 
-### Hebrew TTS
+### Noise injection sweep
 
-| Model | WER (%) | SIM-o | Notes |
-|---|---|---|---|
-| Pretrained (EN+ZH) | | | Expected: very high WER |
-| Fine-tuned (Hebrew CV) | | | |
+See `results/noise_inject/results_metrics.csv` and `results/noise_inject/noise_inject_sweep.png`.
 
 ---
 
@@ -360,58 +233,49 @@ project/
 ├── README_PROJECT.md              # This file
 ├── requirements.txt               # Python dependencies
 ├── setup_project.py               # One-time environment setup helper (legacy)
-├── configs/
-│   └── train_hebrew.yaml          # Fine-tuning hyperparameters
 ├── scripts/
-│   ├── hebrew_utils.py            # Text normalisation, vocab building
-│   ├── download_dataset.py        # Mozilla Common Voice Hebrew download
-│   ├── prepare_hebrew_dataset.py  # CV / custom dataset → F5-TTS format
-│   ├── run_emotion_transfer.py    # Inference: voice cloning + emotion transfer
-│   ├── demo_english.py            # Phase 1 baseline: English zero-shot
-│   ├── demo_hebrew_pretrained.py  # Phase 1 baseline: Hebrew with pretrained model
-│   ├── ablation_sway_sampling.py  # Phase 2: Sway Sampling sweep
-│   ├── ablation_cfg.py            # Phase 2: CFG strength sweep
-│   ├── ablation_emotion_weight.py # Phase 4: emotion_weight sweep
-│   ├── evaluate.py                # WER / SIM-o / MCD computation
-│   └── plot_results.py            # Publication-quality result plots
+│   ├── run_all_phases.py          # Phases 1+2+5: baseline, ablations, eval
+│   ├── run_phase4.py              # Style transfer: direct mel injection
+│   ├── run_noise_inject.py        # Noise-injection style transfer sweep
+│   ├── compute_noise_inject_metrics.py  # Metrics for pre-generated audio
+│   └── finalize_noise_inject.py   # Parse log → CSV + plot
 ├── F5-TTS/                        # Cloned F5-TTS repo (gitignored)
 ├── .venv/                         # Virtual environment (gitignored)
 ├── data/                          # Dataset files (gitignored)
 ├── ckpts/                         # Model checkpoints (gitignored)
 └── results/                       # Generated audio + metrics (gitignored)
+    ├── phase1/english/            # 5 English zero-shot WAVs
+    ├── sway_sampling/             # 45 WAVs + results_metrics.csv
+    ├── cfg_strength/              # 15 WAVs + results_metrics.csv
+    ├── emotion_transfer/          # 6 WAVs + results_metrics.csv + plot
+    ├── noise_inject/              # 18 WAVs + results_metrics.csv + plot
+    └── plots/                     # sway_sampling, cfg_strength, emotion_weight, sway_pdf
 ```
 
 ---
 
 ## Technical Details
 
-### Emotion Transfer: Mel-Space Blending
+### Improvement 1 — Direct Mel Injection
 
-Standard F5-TTS conditions generation on a single audio prompt via its mel spectrogram. This project extends that to two prompts:
+Reading `cfm.py` reveals a branch: if the conditioning tensor is 3D `[B, T_mel, C]`, it is used directly without going through the internal mel-spec conversion. This allows injecting an arbitrary (blended) mel tensor as the conditioning signal:
 
-1. Load `audio_identity` and `audio_emotion`
-2. Compute log-mel spectrograms for both using F5-TTS's own mel parameters (100 mel channels, 24 kHz, hop 256, amplitude spectrum, Slaney norm)
-3. Interpolate: `mel_cond = (1 − w) × mel_identity + w × mel_emotion`
-4. Invert back to a waveform via the vocos vocoder → pass to the standard F5-TTS preprocessing pipeline
+```python
+mel_blend = (1 - w) * mel_A + w * mel_B   # [1, T, 100]
+generated, _ = model.sample(cond=mel_blend, ...)   # 3D → used directly
+```
 
-This is acoustically coherent. The earlier approach of blending raw waveforms before mel extraction was both incorrect (phase noise) and had a bug where the blend was silently discarded because the original file path was still passed to the model.
+Using `model.mel_spec` to compute the mels ensures the conditioning tensor is in exactly the representation the model was trained on (same normalisation, hop length, etc.), keeping the blend in-distribution for the Transformer.
 
-Cross-lingual transfer works because the mel spectrogram carries acoustic style but no script-level information.
+### Improvement 2 — Noise-Injection Style Transfer (SDEdit)
 
-### Hebrew Tokeniser
+Instead of blending the conditioning signal, we bias the ODE *starting point*:
 
-F5-TTS uses character-level tokenisation. For Hebrew:
-- Characters U+05D0–U+05EA (alef to tav) are each a single token
-- Niqqud (diacritical vowel marks, U+0591–U+05C6) are stripped during normalisation — they are redundant for a TTS model that learns pronunciation from audio
-- Final-form letters (ך ם ן ף ץ) are kept as distinct tokens
-- Punctuation and digits are included for robustness
+```
+x_0 = (1 - alpha) * randn_like(mel) + alpha * mel_B
+```
 
-### Fine-tuning Strategy
-
-- Base model: `F5TTS_v1_Base` (335M parameters, pretrained on English + Chinese)
-- Learning rate: 1e-5 (10× lower than pretraining's 7.5e-5)
-- Warmup: 1000 steps (vs 20 000 for pretraining)
-- The pretrained weights provide strong acoustic priors; only the character embeddings for new Hebrew tokens need to be learned from scratch
+The ODE then integrates from `t_start = alpha` to `t = 1`, conditioned throughout on the identity mel A. This is analogous to SDEdit's "noise-level inversion": higher alpha means more of B's structure survives into the output, trading off identity preservation for style injection. Unlike conditioning injection, the identity reference (mel A) is never blended — it drives the model's attention entirely. The interplay with sway sampling (which concentrates ODE steps near `t = 0`) is a key experimental variable.
 
 ---
 
@@ -420,16 +284,13 @@ F5-TTS uses character-level tokenisation. For Hebrew:
 **`ModuleNotFoundError: No module named 'f5_tts'`**
 Run `pip install -e F5-TTS/` with the venv activated.
 
-**CUDA out of memory during fine-tuning**
-Reduce `batch_size_per_gpu` in `configs/train_hebrew.yaml` (try 1600 or 800), or enable `checkpoint_activations: True` and `bnb_optimizer: True`.
+**CUDA out of memory during inference**
+Reduce `--nfe` steps or use `--device cpu`.
 
 **Audio sounds robotic / repetitive**
 - Use a cleaner reference audio (no background noise, 4–10 s)
-- Increase `--nfe_steps` to 32 or 64
-- Try `--sway_coef -1.0` (paper's best setting)
-
-**Hebrew vocab not found**
-Run `prepare_hebrew_dataset.py` first to generate `data/Hebrew_Dataset/vocab.txt`.
+- Increase `--nfe` to 32 or 64
+- Try `--sway -1.0` (paper's best setting)
 
 ---
 
@@ -437,4 +298,3 @@ Run `prepare_hebrew_dataset.py` first to generate `data/Hebrew_Dataset/vocab.txt
 
 - Chen et al. (2025). *F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching.* ACL 2025. [arXiv:2410.06885](https://arxiv.org/abs/2410.06885)
 - [F5-TTS GitHub](https://github.com/SWivid/F5-TTS)
-- [Mozilla Common Voice Hebrew](https://commonvoice.mozilla.org/he)

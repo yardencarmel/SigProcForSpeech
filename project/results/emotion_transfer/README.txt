@@ -59,12 +59,4 @@ Duration shift visible in the audio:
   w=0.75–1.00: 13.32s  (pace shifts as B's Mandarin mel takes over)
   zero-shot:   16.90s  (B's ref_text is Chinese, different byte-rate estimate)
 
-Note on comparison with Hebrew-reference experiment:
-  The original experiment used two adjacent Hebrew Common Voice clips (both
-  neutral read speech, similar emotional register). Those results are archived
-  in results/emotion_transfer_hebrew_refs/. The canonical F5-TTS reference
-  experiment provides maximum acoustic contrast and uses the paper's own
-  reference clip and demo generation text, making the results directly
-  comparable to the base paper's examples.
-
 Script: scripts/run_phase4.py
