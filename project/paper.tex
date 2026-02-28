@@ -284,21 +284,22 @@ $s=+0.4$), confirming that biased sampling is most valuable in the
 low-step budget regime.  Figure~\ref{fig:sway_pdf} illustrates the
 resulting timestep densities.
 
-\begin{figure}[H]
-\colorfig{results/plots/sway_pdf.png}{%
+\noindent\includegraphics[width=\linewidth]{results/plots/sway_pdf.png}\par
+{\captionsetup{width=\linewidth}%
+\captionof{figure}{%
   ODE timestep probability densities for each sway coefficient.
   Negative $s$ concentrates evaluations near $t=0$ (the noisy end);
-  the shape matches Fig.\,2 of the base article.}
+  the shape matches Fig.\,2 of the base article.}}
 \label{fig:sway_pdf}
-\end{figure}
 
-\begin{figure}[H]
-\colorfig{results/plots/sway_sampling.png}{%
+
+\noindent\includegraphics[width=\linewidth]{results/plots/sway_sampling.png}\par
+{\captionsetup{width=\linewidth}%
+\captionof{figure}{%
   WER and SIM-o vs.\ sway coefficient for NFE$\in\{8,16,32\}$.
   The cross-over between NFE curves demonstrates that negative sway
-  matters most when fewer ODE steps are taken.}
+  matters most when fewer ODE steps are taken.}}
 \label{fig:sway}
-\end{figure}
 
 \subsection{CFG Strength Ablation}
 
@@ -605,13 +606,14 @@ Ext.\,1 ($w=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 \end{tabular}
 \end{center}
 
-\begin{figure}[H]
-\colorfig{results/noise_inject/comparison/comparison_scatter.png}{%
+
+\noindent\includegraphics[width=\linewidth]{results/noise_inject/comparison/comparison_scatter.png}\par
+{\captionsetup{width=\linewidth}%
+\captionof{figure}{%
   WER vs.\ SIM-B for all inferences across Methods A--D.
   Method~B achieves the highest SIM-B at WER\,=\,0\,\%; Methods~C and~D
-  achieve high SIM-B only at the cost of unintelligible output.}
+  achieve high SIM-B only at the cost of unintelligible output.}}
 \label{fig:scatter}
-\end{figure}
 
 The comparison reveals a clear hierarchy.  Method~B is the most expressive
 ($\Delta$SIM-B\,=\,$+0.087$) but requires 2$\times$ compute.  Method~A
