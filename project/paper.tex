@@ -7,10 +7,9 @@
 \PassOptionsToPackage{unicode}{hyperref}
 \PassOptionsToPackage{hyphens}{url}
 
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt,a4paper,twocolumn]{article}
 
 % ── Core packages ──────────────────────────────────────────
-\usepackage{multicol}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -30,10 +29,6 @@
 \usetikzlibrary{arrows.meta, positioning, fit, backgrounds}
 
 % ── Column-width figure/caption helper ──────────────────────
-\newcommand{\colorfig}[2]{%
-  \noindent\includegraphics[width=\linewidth]{#1}\par
-  \captionof{figure}{#2}%
-}
 
 % ── Listener evaluation box ─────────────────────────────────
 % Clearly marked spots for human evaluation.  Remove each block
@@ -107,8 +102,9 @@
 
 % ============================================================
 \begin{document}
+\twocolumn[{%
+\begin{@twocolumnfalse}
 \maketitle
-\thispagestyle{empty}
 
 % ── Abstract ───────────────────────────────────────────────
 \begin{abstract}
@@ -138,10 +134,10 @@ a potential adversarial injection surface.
 \textbf{Keywords:} text-to-speech; acoustic style transfer; flow matching;
 SDEdit; mel spectrogram; paralinguistic control; adversarial examples.
 \end{abstract}
-
-\newpage
-\setlength{\columnsep}{18pt}
-\begin{multicols}{2}
+\vspace{\baselineskip}
+\end{@twocolumnfalse}%
+}]
+\thispagestyle{empty}
 
 % ============================================================
 \section{Introduction}
@@ -284,22 +280,33 @@ $s=+0.4$), confirming that biased sampling is most valuable in the
 low-step budget regime.  Figure~\ref{fig:sway_pdf} illustrates the
 resulting timestep densities.
 
-\noindent\includegraphics[width=\linewidth]{results/plots/sway_pdf.png}\par
-{\captionsetup{width=\linewidth}%
-\captionof{figure}{%
-  ODE timestep probability densities for each sway coefficient.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/plots/sway_pdf.png}
+  \caption{ODE timestep probability densities for each sway coefficient.
   Negative $s$ concentrates evaluations near $t=0$ (the noisy end);
-  the shape matches Fig.\,2 of the base article.}}
-\label{fig:sway_pdf}
+  the shape matches Fig.\,2 of the base article.}
+  \label{fig:sway_pdf}
+\end{figure}
 
 
-\noindent\includegraphics[width=\linewidth]{results/plots/sway_sampling.png}\par
-{\captionsetup{width=\linewidth}%
-\captionof{figure}{%
-  WER and SIM-o vs.\ sway coefficient for NFE$\in\{8,16,32\}$.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/plots/sway_sampling.png}
+  \caption{WER and SIM-o vs.\ sway coefficient for NFE$\in\{8,16,32\}$.
   The cross-over between NFE curves demonstrates that negative sway
-  matters most when fewer ODE steps are taken.}}
-\label{fig:sway}
+  matters most when fewer ODE steps are taken.}
+  \label{fig:sway}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/plots/cfg_strength.png}
+  \caption{CFG strength ablation: WER decreases and SIM-o peaks at
+    $\lambda\approx1.0$--$1.5$ before falling, confirming $\lambda=2.0$
+    as a good operating point.}
+  \label{fig:cfg}
+\end{figure}
 
 \subsection{CFG Strength Ablation}
 
@@ -418,12 +425,14 @@ zero-shot B & 16.9 & 0.0 & 0.840 & 846 \\
   Full style ($w=1$): does the output sound like reference B
   (Chinese-accented English)? Rate how different it sounds from $w=0$.}
 
-\noindent\includegraphics[width=\linewidth]{results/plots/emotion_weight.png}\par
-{\captionsetup{width=\linewidth}%
-\captionof{figure}{SIM-o and MCD as a function of blend weight $w$.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/plots/emotion_weight.png}
+  \caption{SIM-o and MCD as a function of blend weight $w$.
   Both metrics shift monotonically, confirming a smooth acoustic gradient
-  between the two reference speakers.}}
-\label{fig:ext1}
+  between the two reference speakers.}
+  \label{fig:ext1}
+\end{figure}
 
 The metric trajectories in Fig.~\ref{fig:ext1} confirm a smooth acoustic
 gradient: SIM-o decreases ($A$'s identity is diluted) and MCD increases
@@ -490,15 +499,24 @@ $\alpha=0$ (WER exceeds 30\,\% at $s\geq+0.1$, reaching 100\,\% at
 $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
 (the clean end) is harmful regardless of initialisation.
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/noise_inject/noise_inject_sweep.png}
+  \caption{Method~A four-metric sweep: WER, SIM-A, SIM-B, and MCD-A
+    as functions of $\alpha$ for $s\in\{-1.0,-0.4,0.0\}$.
+    WER begins rising sharply at $\alpha>0.1$ for all sway values.}
+  \label{fig:sweep}
+\end{figure}
 
-\noindent\includegraphics[width=\linewidth]{results/noise_inject/method_A/tradeoff_wer_simb.png}\par
-{\captionsetup{width=\linewidth}%
-\captionof{figure}{%
-  Method~A: WER vs.\ SIM-B scatter for all $(\alpha, s)$ pairs in the
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/noise_inject/method_A/tradeoff_wer_simb.png}
+  \caption{Method~A: WER vs.\ SIM-B scatter for all $(\alpha, s)$ pairs in the
   fine-grained sweep.  Each point is one inference; colour encodes $\alpha$.
   The Pareto-optimal region (low WER, high SIM-B) is at small positive
-  $\alpha$ with negative sway.}}
-\label{fig:tradeoff}
+  $\alpha$ with negative sway.}
+  \label{fig:tradeoff}
+\end{figure}
 
 
 \listenbox{results/noise\_inject/method\_A/audio/a0.05\_sn0.9.wav}{%
@@ -607,13 +625,14 @@ Ext.\,1 ($w=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 \end{center}
 
 
-\noindent\includegraphics[width=\linewidth]{results/noise_inject/comparison/comparison_scatter.png}\par
-{\captionsetup{width=\linewidth}%
-\captionof{figure}{%
-  WER vs.\ SIM-B for all inferences across Methods A--D.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/noise_inject/comparison/comparison_scatter.png}
+  \caption{WER vs.\ SIM-B for all inferences across Methods A--D.
   Method~B achieves the highest SIM-B at WER\,=\,0\,\%; Methods~C and~D
-  achieve high SIM-B only at the cost of unintelligible output.}}
-\label{fig:scatter}
+  achieve high SIM-B only at the cost of unintelligible output.}
+  \label{fig:scatter}
+\end{figure}
 
 The comparison reveals a clear hierarchy.  Method~B is the most expressive
 ($\Delta$SIM-B\,=\,$+0.087$) but requires 2$\times$ compute.  Method~A
@@ -767,34 +786,9 @@ Section~\ref{sec:security} warrants empirical study; gradient-based
 optimisation of $x_0$ against a target mel would quantify the practical risk.
 
 % ============================================================
-\end{multicols}
 % ============================================================
 
-% ── Full-width figures (outside multicols for full page width) ──────────────
-\begin{figure}[h]
-  \centering
-  \begin{subfigure}[t]{0.48\textwidth}
-    \includegraphics[width=\textwidth]{results/plots/cfg_strength.png}
-    \caption{CFG strength ablation: WER decreases and SIM-o peaks at
-      $\lambda\approx1.0$--$1.5$ before falling, confirming $\lambda=2.0$
-      as a good operating point.}
-    \label{fig:cfg}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[t]{0.48\textwidth}
-    \includegraphics[width=\textwidth]{results/noise_inject/noise_inject_sweep.png}
-    \caption{Method~A four-metric sweep: WER, SIM-A, SIM-B, and MCD-A
-      as functions of $\alpha$ for $s\in\{-1.0,-0.4,0.0\}$.
-      WER begins rising sharply at $\alpha>0.1$ for all sway values.}
-    \label{fig:sweep}
-  \end{subfigure}
-  \caption{Left: classifier-free guidance ablation.  Right: Method~A
-    ($\alpha$--sway) sweep.  Negative sway extends the intelligible
-    $\alpha$ range by providing more ODE steps near the noisy initialisation.}
-  \label{fig:wide}
-\end{figure}
 
-\begin{multicols}{2}
 
 \begin{thebibliography}{99}
 
@@ -875,5 +869,4 @@ arXiv:1801.01944.
 
 \end{thebibliography}
 
-\end{multicols}
 \end{document}

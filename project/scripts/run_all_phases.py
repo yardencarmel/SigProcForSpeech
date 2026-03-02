@@ -131,8 +131,11 @@ def parse_args():
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--skip_existing", action="store_true")
-    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 4, 5],
-                   help="Which phases to run (default: all)")
+    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 4, 5, 6],
+                   help="Which phases to run (1: English, 2: Ablations, 4: Emotion, 5: Eval, 6: Plots)")
+    p.add_argument("--plots", nargs="+", default=["all"],
+                   choices=["all", "sway_sampling", "cfg_strength", "emotion_weight", "sway_pdf"],
+                   help="Which single figures to generate when running phase 6 (default: all)")
     return p.parse_args()
 
 
@@ -539,20 +542,10 @@ def run_phase5(outdir, ref_audio, device):
 # Phase 5b — Plots
 # ---------------------------------------------------------------------------
 
-def run_plots(outdir):
-    print("\n" + "="*60)
-    print("PHASE 5b: Generating plots")
-    print("="*60)
+def plot_sway_sampling(results_dir, plots_dir):
     try:
-        import matplotlib
-        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-
-        results_dir = Path(outdir)
-        plots_dir = results_dir / "plots"
-        plots_dir.mkdir(exist_ok=True)
-
-        # ---- Sway Sampling: WER vs SIM-o ----
+        import numpy as np
         sway_csv = results_dir / "sway_sampling" / "results_metrics.csv"
         if sway_csv.exists():
             with open(sway_csv, encoding="utf-8") as f:
@@ -591,8 +584,14 @@ def run_plots(outdir):
                 fig.savefig(str(plots_dir / "sway_sampling.png"), dpi=120)
                 plt.close()
                 print(f"  -> {plots_dir}/sway_sampling.png")
+    except Exception as e:
+        print(f"  Error plot_sway_sampling: {e}")
+        traceback.print_exc()
 
-        # ---- CFG: WER vs SIM-o ----
+def plot_cfg_strength(results_dir, plots_dir):
+    try:
+        import matplotlib.pyplot as plt
+        import numpy as np
         cfg_csv = results_dir / "cfg_strength" / "results_metrics.csv"
         if cfg_csv.exists():
             with open(cfg_csv, encoding="utf-8") as f:
@@ -623,8 +622,13 @@ def run_plots(outdir):
                 fig.savefig(str(plots_dir / "cfg_strength.png"), dpi=120)
                 plt.close()
                 print(f"  -> {plots_dir}/cfg_strength.png")
+    except Exception as e:
+        print(f"  Error plot_cfg_strength: {e}")
+        traceback.print_exc()
 
-        # ---- Emotion weight: SIM-o and MCD vs weight ----
+def plot_emotion_weight(results_dir, plots_dir):
+    try:
+        import matplotlib.pyplot as plt
         em_csv = results_dir / "emotion_transfer" / "results_metrics.csv"
         if em_csv.exists():
             with open(em_csv, encoding="utf-8") as f:
@@ -654,24 +658,65 @@ def run_plots(outdir):
                 fig.savefig(str(plots_dir / "emotion_weight.png"), dpi=120)
                 plt.close()
                 print(f"  -> {plots_dir}/emotion_weight.png")
+    except Exception as e:
+        print(f"  Error plot_emotion_weight: {e}")
+        traceback.print_exc()
 
-        # ---- Sway PDF π(t) ----
+def plot_sway_pdf(plots_dir):
+    try:
+        import matplotlib.pyplot as plt
+        import numpy as np
         t = np.linspace(0, 1, 500)
         fig, ax = plt.subplots(figsize=(7, 4))
+        for s, alpha in [(1.0, 0.45), (0.8, 0.25)]:
+            f = t + s * (np.cos(np.pi / 2 * t) - 1 + t)
+            dt = np.diff(f)
+            dt = np.where(dt > 0, dt, 1e-6)
+            pdf = 1.0 / np.maximum(dt * len(t), 1e-6)
+            ax.plot(f[1:], pdf, ls="--", alpha=alpha, color="grey",
+                    label=f"s={s:+.1f} (not tested)")
         for s in [0.4, 0.0, -0.4, -0.8, -1.0]:
             f = t + s * (np.cos(np.pi / 2 * t) - 1 + t)
             dt = np.diff(f)
             dt = np.where(dt > 0, dt, 1e-6)
             pdf = 1.0 / np.maximum(dt * len(t), 1e-6)
-            pdf = pdf / pdf.sum()
-            ax.plot(t[1:], pdf, label=f"s={s:+.1f}")
+            ax.plot(f[1:], pdf, label=f"s={s:+.1f}")
         ax.set_xlabel("t"); ax.set_ylabel("π(t) density")
+        ax.set_ylim(10**-0.5, 10**1.5)
         ax.set_title("Sway Sampling: ODE timestep distribution π(t)")
+        ax.set_yscale("log")
         ax.legend(); ax.grid(True, alpha=0.4)
         plt.tight_layout()
         fig.savefig(str(plots_dir / "sway_pdf.png"), dpi=120)
         plt.close()
         print(f"  -> {plots_dir}/sway_pdf.png")
+    except Exception as e:
+        print(f"  Error plot_sway_pdf: {e}")
+        traceback.print_exc()
+
+def run_plots(outdir, plots_to_run=["all"]):
+    print("\n" + "="*60)
+    print(f"PHASE 6: Generating plots (plots={plots_to_run})")
+    print("="*60)
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        
+        results_dir = Path(outdir)
+        plots_dir = results_dir / "plots"
+        plots_dir.mkdir(exist_ok=True)
+
+        if "all" in plots_to_run:
+            plots_to_run = ["sway_sampling", "cfg_strength", "emotion_weight", "sway_pdf"]
+            
+        if "sway_sampling" in plots_to_run:
+            plot_sway_sampling(results_dir, plots_dir)
+        if "cfg_strength" in plots_to_run:
+            plot_cfg_strength(results_dir, plots_dir)
+        if "emotion_weight" in plots_to_run:
+            plot_emotion_weight(results_dir, plots_dir)
+        if "sway_pdf" in plots_to_run:
+            plot_sway_pdf(plots_dir)
 
     except Exception as e:
         print(f"  Plot error: {e}")
@@ -705,8 +750,11 @@ def main():
     print(f"Output dir   : {args.outdir}")
     print(f"Phases       : {args.phases}\n")
 
-    # Load model once (downloads checkpoint on first run)
-    model, vocoder = load_f5tts(device=args.device)
+    # Load model only if needed (prevents hanging when just creating graphs)
+    if any(p in args.phases for p in [1, 2, 4]):
+        model, vocoder = load_f5tts(device=args.device)
+    else:
+        model, vocoder = None, None
 
     if 1 in args.phases:
         run_phase1(model, vocoder, ref_audio, ref_text, args.outdir, args.device, args.seed)
@@ -724,7 +772,9 @@ def main():
 
     if 5 in args.phases:
         run_phase5(args.outdir, ref_audio, args.device)
-        run_plots(args.outdir)
+
+    if 6 in args.phases or 5 in args.phases:
+        run_plots(args.outdir, args.plots)
 
     print("\n" + "="*60)
     print("ALL PHASES COMPLETE")
