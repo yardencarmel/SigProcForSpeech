@@ -121,10 +121,11 @@ inference-time extensions that require no retraining.
 mel spectrograms directly into the model's conditioning branch, producing a
 smooth acoustic gradient between speakers measurable via speaker similarity
 and mel-cepstral distortion.
-\textbf{Extension\,2} adapts the SDEdit framework~\cite{song2022sdedit} to
+\textbf{Extension\,2} adapts the SDEdit (stochastic differential equations) framework~\cite{song2022sdedit} to
 flow-matching TTS by biasing the ODE starting point toward a style reference
-while conditioning on an identity reference; four variants (Methods A--D)
-spanning initialisation and vector-field manipulation are evaluated.
+while conditioning on an identity reference; four variants are evaluated:
+SDEdit initialisation (A), style guidance via a two-pass ODE (B),
+scheduled conditioning switching (C), and noise statistics transfer (D).
 We discuss why extending F5-TTS to unseen languages such as Hebrew requires
 full retraining, and analyse a novel security concern: the noise
 initialisation channel, once exposed as a controllable interface, constitutes
@@ -623,6 +624,9 @@ Ext.\,1 ($w=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 \bottomrule
 \end{tabular}
 \end{center}
+(Note: in method D the best results are achieved by choosing $\alpha=0$, which is essesntially the base case of not scaling the Gaussian noise at all)
+
+
 
 
 \begin{figure}[htbp]

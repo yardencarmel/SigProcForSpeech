@@ -563,7 +563,7 @@ def plot_sway_sampling(results_dir, plots_dir):
                 except Exception:
                     pass
             if agg:
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 10))
                 # WER vs sway_coef for each NFE
                 for nfe in [8, 16, 32]:
                     keys = sorted(k for k in agg if k[1] == nfe)
@@ -611,7 +611,7 @@ def plot_cfg_strength(results_dir, plots_dir):
                 cfgs = sorted(agg.keys())
                 wers = [np.mean([v[0] for v in agg[c]]) for c in cfgs]
                 sims = [np.mean([v[1] for v in agg[c]]) for c in cfgs]
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 8))
                 ax1.plot(cfgs, wers, "o-", color="royalblue")
                 ax1.set_xlabel("CFG strength"); ax1.set_ylabel("WER (%)")
                 ax1.set_title("WER vs CFG strength"); ax1.grid(True)
@@ -646,7 +646,7 @@ def plot_emotion_weight(results_dir, plots_dir):
                 except Exception:
                     pass
             if ws:
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 8))
                 ax1.plot(ws[:len(sims)], sims, "o-", color="steelblue")
                 ax1.set_xlabel("Emotion weight"); ax1.set_ylabel("SIM-o")
                 ax1.set_title("Speaker similarity vs emotion weight"); ax1.grid(True)

@@ -12,7 +12,9 @@
       "Bash(find /c/Users/User/Documents/MSc/Studies/SigProcForSpeech/project/results -type d -maxdepth 1 | xargs -I {} bash -c 'echo \"{}\" && find \"{}\" -type f \\\\\\( -name \"*.wav\" -o -name \"*.csv\" -o -name \"*.png\" \\\\\\) 2>/dev/null | wc -l' 2>/dev/null)",
       "Bash(tail:*)",
       "Bash(grep:*)",
-      "Bash(grep ^l\\\\.:*)"
+      "Bash(grep ^l\\\\.:*)",
+      "Bash(ls:*)",
+      "Bash(.venv/bin/python:*)"
     ]
   }
 }

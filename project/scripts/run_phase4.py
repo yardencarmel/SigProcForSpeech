@@ -500,7 +500,7 @@ def run_experiment(args):
             sims = [r["sim_o"] for r in v2_rows]
             mcds = [r["mcd"] for r in v2_rows]
 
-            fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+            fig, axes = plt.subplots(3, 1, figsize=(6, 12))
             fig.suptitle("Emotion Transfer v2 — Direct Mel Injection", fontsize=13)
 
             axes[0].plot(ws, wers, "o-r")

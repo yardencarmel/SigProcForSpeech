@@ -147,7 +147,7 @@ def plot_metric_trends(all_rows: dict[str, list[dict]], out_dir: Path, methods: 
             ("mcd_A", "MCD-A (vs identity)", False, "lower is better"),
         ]
 
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig, axes = plt.subplots(4, 1, figsize=(7, 20))
         fig.suptitle(
             "Style Transfer Method Comparison — F5-TTS Flow Matching\n"
             "Identity A = basic_ref_en  |  Style B = basic_ref_zh\n"

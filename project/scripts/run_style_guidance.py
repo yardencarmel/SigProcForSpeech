@@ -529,7 +529,7 @@ def _plot_results(rows, guidance_scales, sway_coefs, out_dir):
             ("mcd_A", "MCD-A (vs identity)", "green"),
         ]
 
-        fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+        fig, axes = plt.subplots(4, 1, figsize=(7, 18))
         fig.suptitle(
             "Style Guidance — 2-Pass ODE Extrapolation (Method B)\n"
             "Identity A = basic_ref_en  |  Style B = basic_ref_zh\n"

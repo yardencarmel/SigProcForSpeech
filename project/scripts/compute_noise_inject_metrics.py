@@ -161,7 +161,7 @@ metrics = [
     ("mcd_A", "MCD-A (vs identity)", "green"),
 ]
 
-fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+fig, axes = plt.subplots(4, 1, figsize=(7, 18))
 fig.suptitle(
     "Noise-Injection Style Transfer — SDEdit on Flow Matching\n"
     "Identity A = basic_ref_en  |  Style B = basic_ref_zh\n"
