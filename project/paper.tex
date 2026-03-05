@@ -169,10 +169,7 @@ We make the following contributions:
     conditioning branch in \texttt{cfm.py} that accepts mel spectrograms
     directly, bypassing the vocoder, and use it to blend two reference
     speakers' conditioning mels at inference time.
-  \item \textbf{Noise-biased style transfer} (Extension\,2): four methods
-    that manipulate either the ODE starting point or the vector field to
-    inject style from a second reference, without touching the identity
-    conditioning.
+  \item \textbf{Noise-biased style transfer} (Extension\,2): four inference-tim	e methods: (A) biasing the ODE starting noise toward a style reference's mel; (B) steering the vector field via a two-pass style guidance term; (C) switching the conditioning mel from style to identity at a scheduled ODE timestep; (D) transferring the style reference's global amplitude statistics onto the initial noise.
   \item A discussion of cross-lingual limitations (Hebrew) and a novel
     adversarial threat model enabled by the noise initialisation interface.
 \end{enumerate}
@@ -189,24 +186,27 @@ is performed.
 \subsection{Conditional Flow Matching}
 \label{sec:cfm}
 
-F5-TTS generates mel spectrograms by solving an ODE
-\begin{equation}
-  \frac{dx}{dt} = v_\theta(x_t,\,c,\,t), \quad
-  x_0 \sim \mathcal{N}(0,I), \quad t \in [0,1],
+F5-TTS generates mel spectrograms by solving an ODE:
+\begin{align}
+  &\frac{d\psi_t(x_0)}{dt} = v_t\!\bigl(\psi_t(x_0),\,c\bigr),\notag\\
+  &\psi_0(x_0)=x_0,\quad \psi_1(x_0)=x_1,
   \label{eq:ode}
-\end{equation}
-where $v_\theta$ is a DiT vector field and $c$ is the reference mel
-spectrogram concatenated to the noisy input along the time axis.
+\end{align}
+where $x_0\sim\mathcal{N}(0,I)$ is sampled noise,
+$x_1$ is the target mel spectrogram,
+$v_t$ is a DiT vector field, and
+$c=(x_{\mathrm{ref}},\,z_{\mathrm{ref{\cdot}gen}})$ is the conditioning
+(reference mel concatenated with the character sequence along the time axis).
 Training uses the Conditional Flow Matching objective~\cite{lipman2023flow},
 which directly regresses the ground-truth transport vector field without
 requiring a DDPM noise schedule~\cite{ho2020ddpm}.
 
 Classifier-free guidance~\cite{ho2022cfg} is applied during inference:
-\begin{equation}
-  v_{\rm guided} = v_\theta(x,\varnothing,t)
-    + \lambda\bigl[v_\theta(x,c,t)-v_\theta(x,\varnothing,t)\bigr],
+\begin{align}
+  v_{\rm guided} &= v_t(x,\varnothing)\notag\\
+    &\quad+ \lambda\bigl[v_t(x,c)-v_t(x,\varnothing)\bigr],
   \label{eq:cfg}
-\end{equation}
+\end{align}
 where $\varnothing$ denotes a dropped (null) conditioning and $\lambda$ is
 the guidance strength.
 
@@ -360,8 +360,8 @@ Given identity reference $A$ and style reference $B$ with mels
 $\mathbf{m}_A, \mathbf{m}_B \in\mathbb{R}^{T\times 100}$ (computed via
 the model's own \texttt{MelSpec} module to remain in-distribution), we form
 \begin{equation}
-  \mathbf{m}{(w)} = (1-w)\,\mathbf{m}_A + w\,\mathbf{m}_B,
-  \quad w\in[0,1].
+  \mathbf{m}{(\alpha)} = (1-\alpha)\,\mathbf{m}_A + \alpha\,\mathbf{m}_B,
+  \quad \alpha\in[0,1].
   \label{eq:blend}
 \end{equation}
 Because both mels are computed by the identical mel filterbank the model was
@@ -373,7 +373,7 @@ signal.
 Waveform mixing causes phase interference that destroys spectral structure.
 Blending in mel space then inverting via Vocos fails at intermediate weights:
 a linearly blended mel is out-of-distribution for the vocoder, producing
-clipped, ~1\,s garbled outputs (100\,\% WER at $w\in(0.1,0.9)$ in our v1
+clipped, ~1\,s garbled outputs (100\,\% WER at $\alpha\in(0.1,0.9)$ in our v1
 experiments).  Direct 3D injection bypasses Vocos inversion entirely.
 
 \textbf{Important limitation.}
@@ -400,7 +400,7 @@ vs.\ reference~A; MCD is mel-cepstral distortion vs.\ A.}
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}crrrr@{}}
 \toprule
-$w$ & Dur (s) & WER\,(\%) & SIM-o & MCD \\
+$\alpha$ & Dur (s) & WER\,(\%) & SIM-o & MCD \\
 \midrule
 0.00 & 12.3 &  0.0 & 0.893 & 726 \\
 0.25 & 12.3 &  0.0 & 0.896 & 707 \\
@@ -414,22 +414,22 @@ zero-shot B & 16.9 & 0.0 & 0.840 & 846 \\
 \end{center}
 
 \listenbox{results/emotion\_transfer/audio/w0.00.wav}{%
-  Baseline ($w=0$): does the output sound like reference A
+  Baseline ($\alpha=0$): does the output sound like reference A
   (English female)? Rate identity fidelity (1--5) and naturalness.}
 
 \listenbox{results/emotion\_transfer/audio/w0.50.wav}{%
   50/50 blend: does the voice sound like a morph between A and B?
   Is the acoustic gradient perceptible? Is speech intelligible?
-  Note: WER=15\% (Whisper heard ``Nature.'' at the start).}
+  Note: WER=15\% (Whisper heard ``Nature.''\ at the start).}
 
 \listenbox{results/emotion\_transfer/audio/w1.00.wav}{%
-  Full style ($w=1$): does the output sound like reference B
-  (Chinese-accented English)? Rate how different it sounds from $w=0$.}
+  Full style ($\alpha=1$): does the output sound like reference B
+  (Chinese-accented English)? Rate how different it sounds from $\alpha=0$.}
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\linewidth]{results/plots/emotion_weight.png}
-  \caption{SIM-o and MCD as a function of blend weight $w$.
+  \caption{SIM-o and MCD as a function of blend weight $\alpha$.
   Both metrics shift monotonically, confirming a smooth acoustic gradient
   between the two reference speakers.}
   \label{fig:ext1}
@@ -437,11 +437,11 @@ zero-shot B & 16.9 & 0.0 & 0.840 & 846 \\
 
 The metric trajectories in Fig.~\ref{fig:ext1} confirm a smooth acoustic
 gradient: SIM-o decreases ($A$'s identity is diluted) and MCD increases
-(output moves away from $A$) as $w$ grows.  Duration also shifts from
-$A$'s pace (12.3\,s) toward $B$'s (13.3\,s) at $w\geq0.75$, reflecting
+(output moves away from $A$) as $\alpha$ grows.  Duration also shifts from
+$A$'s pace (12.3\,s) toward $B$'s (13.3\,s) at $\alpha\geq0.75$, reflecting
 B's conditioning mel's influence on prosodic rhythm.
 
-The $w=0.5$ artefact (WER\,=\,15\,\%) is noteworthy: reference A's
+The $\alpha=0.5$ artefact (WER\,=\,15\,\%) is noteworthy: reference A's
 transcript contains ``Some call me nature...''; at the 50/50 blend,
 the model's cross-attention is split between two conflicting conditioning
 mels, and the word ``nature'' bleeds from the reference text context into
@@ -620,7 +620,7 @@ B ($g=0.5$)       & 0\,\% & 0.843 & \textbf{0.858} & 809 \\
 C ($t^*=0$)       & 0\,\% & 0.893 & 0.771 & 726 \\
 D ($\alpha=0$)    & 0\,\% & 0.893 & 0.771 & 726 \\
 \midrule
-Ext.\,1 ($w=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
+Ext.\,1 ($\alpha=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -644,7 +644,7 @@ provides modest but clean style transfer ($\Delta$SIM-B\,=\,$+0.012$) at
 no additional cost.  Methods~C and~D yield high SIM-B figures only in
 configurations where speech is unintelligible—hollow wins that do not
 represent functional style transfer.  Extension\,1's mel blending is
-complementary: it achieves the lowest MCD (707 at $w=0.25$) and the
+complementary: it achieves the lowest MCD (707 at $\alpha=0.25$) and the
 highest SIM-o, but at the cost of joint identity–style blending rather
 than clean style separation.
 
