@@ -20,33 +20,10 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{array}
-\usepackage{tabularx}
 \usepackage{caption}
 \usepackage{gensymb}
-\usepackage{booktabs}
-\usepackage{array}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, fit, backgrounds}
-
-% ── Column-width figure/caption helper ──────────────────────
-
-% ── Listener evaluation box ─────────────────────────────────
-% Clearly marked spots for human evaluation.  Remove each block
-% after inserting the listener judgment before finalising the paper.
-\newcommand{\listenbox}[2]{%
-  \vspace{3pt}%
-  \noindent\begin{minipage}{\linewidth}%
-    \noindent\rule{\linewidth}{1.5pt}\vspace{2pt}
-    \par\noindent{\small\bfseries\color{red!60!black}%
-      [*** TO REMOVE: LISTENER EVALUATION REQUIRED ***]}%
-    \par\noindent{\small\textbf{Listen to:}~\texttt{#1}}%
-    \par\noindent{\small\textbf{Task:}~#2}%
-    \par\noindent{\small\textit{Human rating (MOS 1--5 / qualitative notes):}~%
-      \underline{\hspace{3.5cm}}}\vspace{2pt}%
-    \par\noindent\rule{\linewidth}{1.5pt}%
-  \end{minipage}%
-  \vspace{3pt}%
-}
 
 % ── Equation overflow fix ───────────────────────────────────
 \relpenalty=9999
@@ -115,13 +92,13 @@ Despite its impressive voice-cloning capability, the paper explicitly
 identifies the absence of fine-grained paralinguistic control—particularly
 emotion—as a key limitation.  We reproduce the paper's sway-sampling and
 classifier-free guidance ablations, confirming that $s{=}{-}0.8$, NFE$=32$
-achieves 0\,\% word error rate.  We then introduce THREE OR FOUR --- CHECK complementary
+achieves 0\,\% word error rate.  We then introduce two complementary
 inference-time extensions that require no retraining.
 \textbf{Extension\,1} injects a linearly interpolated blend of two reference
 mel spectrograms directly into the model's conditioning branch, producing a
 smooth acoustic gradient between speakers measurable via speaker similarity
 and mel-cepstral distortion.
-\textbf{Extension\,2} adapts the SDEdit (stochastic differential equations) framework~\cite{song2022sdedit} to
+\textbf{Extension\,2} adapts the SDEdit (stochastic differential edit) framework~\cite{song2022sdedit} to
 flow-matching TTS by biasing the ODE starting point toward a style reference
 while conditioning on an identity reference; four variants are evaluated:
 SDEdit initialisation (A), style guidance via a two-pass ODE (B),
@@ -160,23 +137,33 @@ e.g.\ emotion.''}~\cite{chen2025f5tts}.
 The model can replicate \emph{who} is speaking but cannot independently
 control \emph{how} they speak—their emotional tone, energy, or prosodic style.
 Addressing this gap is the central motivation of this work.
+We use ``style transfer'' broadly to encompass any inference-time
+manipulation that shifts the acoustic characteristics of generated speech
+toward a reference signal---including acoustic morphing where identity and
+style are not fully disentangled.
 
 We make the following contributions:
 \begin{enumerate}[leftmargin=*,label=(\arabic*)]
   \item \textbf{Baseline reproduction}: we replicate the sway-sampling and
     CFG strength ablations from the original paper, validating our pipeline.
-  \item \textbf{Direct mel injection} (Extension\,1): we expose a dormant 3D
+  \item \textbf{Direct mel injection} (Extension 1): we expose a dormant 3D
     conditioning branch in \texttt{cfm.py} that accepts mel spectrograms
     directly, bypassing the vocoder, and use it to blend two reference
     speakers' conditioning mels at inference time.
-  \item \textbf{Noise-biased style transfer} (Extension\,2): four inference-tim	e methods: (A) biasing the ODE starting noise toward a style reference's mel; (B) steering the vector field via a two-pass style guidance term; (C) switching the conditioning mel from style to identity at a scheduled ODE timestep; (D) transferring the style reference's global amplitude statistics onto the initial noise.
-  \item A discussion of cross-lingual limitations (Hebrew) and a novel
-    adversarial threat model enabled by the noise initialisation interface.
+  \item \textbf{Noise-biased style transfer} (Extension 2): four
+    inference-time methods: (A)~biasing the ODE starting noise toward a
+    style reference's mel; (B)~steering the vector field via a two-pass
+    style guidance term; (C)~switching the conditioning mel from style to
+    identity at a scheduled ODE timestep; (D)~transferring the style
+    reference's global amplitude statistics onto the initial noise.
+  \item A discussion of cross-lingual limitations (Hebrew) and a novel adversarial threat model enabled by the noise initialisation interface.
 \end{enumerate}
 
 All experiments use the publicly available pretrained F5-TTS checkpoint.
 No fine-tuning or model modification (beyond the \texttt{cfm.py} extension)
 is performed.
+Due to the exploratory nature of this project, all experiments use a small
+evaluation set (three sentences, one speaker pair).
 
 % ============================================================
 \section{Background}
@@ -231,8 +218,9 @@ measures intelligibility.
 \textbf{SIM} (speaker similarity), computed as the cosine similarity of
 mean-pooled WavLM-Base-Plus~\cite{chen2022wavlm} embeddings, measures
 how closely the generated audio matches a reference speaker.
-Where two references are active, SIM-A denotes similarity to the identity
-reference and SIM-B to the style reference.
+In single-reference experiments we write SIM-o (similarity to the sole
+conditioning reference); where two references are active, SIM-A denotes
+similarity to the identity reference and SIM-B to the style reference.
 \textbf{MCD} (mel-cepstral distortion, 24 MFCCs, DTW-aligned) measures
 acoustic distance from a reference in cepstral space.
 
@@ -255,27 +243,25 @@ three sentences. Best result per NFE shown in \textbf{bold}.}
 \label{tab:sway}
 \smallskip
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}ccrrc@{}}
+\begin{tabular}{@{}ccrr@{}}
 \toprule
-$s$ & NFE & WER\,(\%) & SIM-o & \\
+$s$ & NFE & WER\,(\%) & SIM-o  \\
 \midrule
-$+0.4$ & 8  & 87.9 & 0.694 & \\
-$+0.4$ & 32 & 51.9 & 0.827 & \\
-$0.0$  & 32 &  3.7 & 0.836 & \\
-$-0.4$ & 32 &  7.9 & 0.826 & \\
-$-0.8$ & 32 & \textbf{0.0} & 0.784 & \\
-$-1.0$ & 8  & \textbf{20.7} & 0.830 & \\
-$-1.0$ & 32 &  7.4 & 0.802 & \\
+$+0.4$ & 8  & 87.9 & 0.694 \\
+$+0.4$ & 32 & 51.9 & 0.827  \\
+$0.0$  & 32 &  3.7 & 0.836  \\
+$-0.4$ & 32 &  7.9 & 0.826  \\
+$-0.8$ & 32 & \textbf{0.0} & 0.784  \\
+$-1.0$ & 8  & \textbf{20.7} & 0.830  \\
+$-1.0$ & 32 &  7.4 & 0.802  \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\listenbox{results/phase1/english/en01.wav}{%
-  Is the output speech clear and natural-sounding?
-  Rate overall quality (1=poor, 5=excellent).}
-
 Key finding: $s=-0.8$ with NFE$=32$ achieves 0\,\% WER on all three
-sentences, reproducing the paper's recommendation.  At NFE$=8$, the
+sentences.  This differs slightly from the original paper's reported
+optimum of $s=-1$ (which yields 7.4\,\% WER in our reproduction),
+likely due to our smaller test set.  At NFE$=8$, the
 bias of $s=-1.0$ provides the largest benefit (+67 pp WER reduction vs.\
 $s=+0.4$), confirming that biased sampling is most valuable in the
 low-step budget regime.  Figure~\ref{fig:sway_pdf} illustrates the
@@ -298,15 +284,6 @@ resulting timestep densities.
   The cross-over between NFE curves demonstrates that negative sway
   matters most when fewer ODE steps are taken.}
   \label{fig:sway}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=\linewidth]{results/plots/cfg_strength.png}
-  \caption{CFG strength ablation: WER decreases and SIM-o peaks at
-    $\lambda\approx1.0$--$1.5$ before falling, confirming $\lambda=2.0$
-    as a good operating point.}
-  \label{fig:cfg}
 \end{figure}
 
 \subsection{CFG Strength Ablation}
@@ -334,6 +311,15 @@ $\lambda$ & WER\,(\%) & SIM-o \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{results/plots/cfg_strength.png}
+  \caption{CFG strength ablation: WER decreases and SIM-o peaks at
+    $\lambda\approx1.0$--$1.5$ before falling, confirming $\lambda=2.0$
+    as a good operating point.}
+  \label{fig:cfg}
+\end{figure}
 
 % ============================================================
 \section{Extension 1: Direct Mel Conditioning Interpolation}
@@ -387,7 +373,7 @@ speaker and emotion encoders) that F5-TTS does not possess.
 \subsection{Results}
 
 Identity reference\,A: canonical English male demo (\texttt{basic\_ref\_en.wav}).
-Style reference\,B: Mandarin animated character, (\texttt{basic\_ref\_zh.wav}).
+Style reference\,B: Mandarin animated character (\texttt{basic\_ref\_zh.wav}).
 Target text (same for all runs):
 \emph{``I don't really care what you call me. I've been a silent spectator,
 watching species evolve, empires rise and fall.''}
@@ -412,19 +398,6 @@ zero-shot B & 16.9 & 0.0 & 0.840 & 846 \\
 \bottomrule
 \end{tabular}
 \end{center}
-
-\listenbox{results/emotion\_transfer/audio/w0.00.wav}{%
-  Baseline ($\alpha=0$): does the output sound like reference A
-  (English female)? Rate identity fidelity (1--5) and naturalness.}
-
-\listenbox{results/emotion\_transfer/audio/w0.50.wav}{%
-  50/50 blend: does the voice sound like a morph between A and B?
-  Is the acoustic gradient perceptible? Is speech intelligible?
-  Note: WER=15\% (Whisper heard ``Nature.''\ at the start).}
-
-\listenbox{results/emotion\_transfer/audio/w1.00.wav}{%
-  Full style ($\alpha=1$): does the output sound like reference B
-  (Chinese-accented English)? Rate how different it sounds from $\alpha=0$.}
 
 \begin{figure}[htbp]
   \centering
@@ -520,12 +493,6 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
 \end{figure}
 
 
-\listenbox{results/noise\_inject/method\_A/audio/a0.05\_sn0.9.wav}{%
-  Method~A at the best operating point ($\alpha=0.05$, $s=-0.9$).
-  Does the voice sound noticeably different from the pure baseline?
-  Is it still fully intelligible?
-  Compare against \texttt{a0.00\_sn1.0.wav} (pure baseline).}
-
 \subsection{Method B — Style Guidance (2-Pass ODE)}
 
 \textbf{Formulation.}
@@ -541,42 +508,33 @@ This is structurally identical to classifier-free guidance
 unconditional baseline.  The computational cost doubles (2$\times$
 transformer evaluations per step).
 
-\textbf{Results.} At $g=0.5$, $s=-1.0$: WER\,=\,0\,\%, SIM-A\,=\,0.843,
+\textbf{Results.} We swept $g\in\{0.25,0.5,0.75,1.0,1.5\}$.
+At $g=0.5$, $s=-1.0$: WER\,=\,0\,\%, SIM-A\,=\,0.843,
 SIM-B\,=\,\textbf{0.858}, MCD\,=\,809. SIM-B rises by $+0.087$ above
 baseline with zero intelligibility loss—the best style transfer of all four
 methods.  At $g\geq1.0$ intelligibility collapses (WER\,$\geq$\,70\,\%) as
 the vector field is extrapolated beyond the style manifold.
 
-\listenbox{results/noise\_inject/method\_B/audio/gs0.50\_sn1.0.wav}{%
-  Method~B at $g=0.5$, $s=-1$: does the voice carry perceptible stylistic
-  properties from reference~B (Chinese-accented prosody, energy)?
-  Is speech fully intelligible? Rate style acquisition (1--5).}
+\subsection{Methods C \& D — Negative Results}
 
-\subsection{Method C — Scheduled Conditioning}
+Two additional variants were tested but failed to produce intelligible style
+transfer at any non-trivial parameter setting.
 
-\textbf{Formulation.}
+\textbf{Method C (Scheduled Conditioning)} switches the conditioning mel from
+$\mathbf{m}_B$ to $\mathbf{m}_A$ at a threshold timestep $t^*$:
 \begin{equation}
   c(t) = \begin{cases} \mathbf{m}_B & t < t^* \\ \mathbf{m}_A & t \geq t^* \end{cases}
   \label{eq:methc}
 \end{equation}
-Early ODE steps (near noise, $t\approx0$) see~$\mathbf{m}_B$; later steps
-see~$\mathbf{m}_A$.  Single-pass; no extra compute.
+All $t^*>0$ cause severe WER degradation
+(20--70\,\%), and informal listening confirms the model adopts $B$'s voice
+wholesale rather than borrowing stylistic attributes—identity
+\emph{replacement}, not style transfer.  The sharp conditioning discontinuity
+overwhelms the Euler integrator; a smooth cosine schedule may mitigate this
+and is left as future work.
 
-\textbf{Results.}
-All non-degenerate switch points ($t^*>0$) cause severe intelligibility
-loss: at $t^*=0.25$, WER\,=\,70\,\% (sway\,=\,$-1$) or 20\,\%
-(sway\,=\,0). SIM-B is high ($\approx0.89$) but unintelligible speech is not
-useful.  Method C is sensitive to the sharp discontinuity in conditioning:
-the Euler integrator handles it without failure, but the model's attention
-cannot reconcile two very different conditioning mels within a single
-trajectory.  A smooth cosine interpolation schedule (rather than a step
-function) may mitigate this; we leave this as future work.
-
-\subsection{Method D — Noise Statistics Transfer}
-
-\textbf{Formulation.}
-Rather than copying $\mathbf{m}_B$'s frame content into $x_0$, we
-rescale the Gaussian noise to match $\mathbf{m}_B$'s global statistics:
+\textbf{Method D (Noise Statistics Transfer)} rescales $x_0$ to match
+$\mathbf{m}_B$'s global mean and variance:
 \begin{equation}
   x_0 = \frac{\varepsilon}{\|\varepsilon\|_\sigma}\cdot\sigma_{\rm target}
         + \alpha\,\mu_B,
@@ -584,25 +542,19 @@ rescale the Gaussian noise to match $\mathbf{m}_B$'s global statistics:
 \end{equation}
 where $\sigma_{\rm target} = \alpha\,\text{std}(\mathbf{m}_B)
 + (1-\alpha)\,\text{std}(\varepsilon)$ and $\mu_B = \text{mean}(\mathbf{m}_B)$.
-This is an information-theoretic lower bound on style injection: only first-
-and second-order statistics of $\mathbf{m}_B$ are transferred.
-
-\textbf{Results.}
-At $\alpha=0.1$, WER\,=\,100\,\% (both sway values); the model produces
-unintelligible audio at all non-zero $\alpha$.  This is a strong negative
-result: global amplitude statistics, when injected into the noise
-initialisation, disrupt the model far more severely than frame-level content
-(Method~A).  Rescaling the noise amplitude destroys the implicit scale
-calibration the model relies on to correctly integrate the ODE trajectory.
-Method~D reveals that the model is sensitive to the \emph{variance} of $x_0$,
-not only its spatial structure.
+At all non-zero $\alpha$, WER\,=\,100\,\%.  This strong negative result
+reveals that the model is sensitive to the \emph{variance} of $x_0$, not
+only its spatial structure: rescaling destroys the implicit amplitude
+calibration the ODE integration relies on.
 
 \subsection{Cross-Method Comparison}
 \label{sec:comparison}
 
 Table~\ref{tab:comparison} summarises the best intelligibility-preserving
 (WER\,=\,0\,\%) result from each method at $s=-1.0$.  Figure~\ref{fig:scatter}
-compares the WER–SIM-B scatter across all methods.
+compares the WER–SIM-B scatter across all methods.  Note that Methods~C
+and~D achieve WER\,=\,0\,\% only at their trivial settings ($t^*{=}0$ and
+$\alpha{=}0$), which reduce to the baseline.
 
 \begin{center}
 \captionof{table}{Best WER\,=\,0\,\% result per method at $s=-1$.
@@ -624,10 +576,6 @@ Ext.\,1 ($\alpha=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 \bottomrule
 \end{tabular}
 \end{center}
-(Note: in method D the best results are achieved by choosing $\alpha=0$, which is essesntially the base case of not scaling the Gaussian noise at all)
-
-
-
 
 \begin{figure}[htbp]
   \centering
@@ -648,108 +596,91 @@ complementary: it achieves the lowest MCD (707 at $\alpha=0.25$) and the
 highest SIM-o, but at the cost of joint identity–style blending rather
 than clean style separation.
 
+\subsection{Informal Listening Impressions}
+\label{sec:listening}
+
+Two of the authors independently listened to selected samples from each
+experiment.  Key observations:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Baseline} (Section~\ref{sec:baseline}): intelligible but
+    with a slightly robotic, ``phone-call'' quality (naturalness~3/5).
+    A noticeable accent shift toward British English was observed relative
+    to the American-accented reference.
+  \item \textbf{Ext.\,1, $\alpha{=}0$}: near-perfect identity fidelity and
+    naturalness (both~5/5); indistinguishable from a standard F5-TTS
+    zero-shot output.
+  \item \textbf{Ext.\,1, $\alpha{=}0.5$}: a moderate acoustic morph is
+    perceptible (3/5), and speech remains fully intelligible (5/5).
+    Brief gibberish is audible at the utterance onset, consistent with
+    the 15\,\% WER; a faint buzzing artefact persists in the background.
+  \item \textbf{Ext.\,1, $\alpha{=}1.0$}: the voice shifts almost entirely
+    to reference~B, confirming that identity is not preserved at full
+    blend weight (style shift~3/5, naturalness~4/5).
+  \item \textbf{Method~A} ($\alpha{=}0.05$, $s{=}{-}0.9$): only a subtle
+    difference from the pure baseline is audible (2/5); the output retains
+    strong American phonetic features (e.g.\ rhotic /r/) with only a hint
+    of reference~B's characteristics.  Fully intelligible (5/5).
+  \item \textbf{Method~B} ($g{=}0.5$, $s{=}{-}1$): the most perceptible
+    style transfer—the voice retains speaker~A's identity but carries
+    reference~B's energy contour and prosodic accent (style acquisition
+    3--3.5/5).  Fully intelligible (5/5); minor electronic noise at the
+    utterance onset.
+  \item \textbf{Method~C} ($t^*{=}0.25$): at sway$=0$ the output is
+    partially intelligible (3/5) with noticeable electronic noise
+    (naturalness~2/5); at sway$=-1$ intelligibility degrades further.
+    In both cases the voice sounds like speaker~B rather than~A
+    (style acquisition~4/5), confirming that scheduled conditioning
+    produces identity {\em replacement} rather than style transfer—the
+    model adopts~B's voice wholesale instead of borrowing only stylistic
+    attributes.
+  \item \textbf{Method~D}: even at $\alpha{=}0$ (no style injection),
+    the output degrades into robotic, distorted speech with heavy
+    electrical background noise partway through the utterance.
+    At any $\alpha>0$ the output is pure noise.  This confirms the
+    quantitative finding: rescaling noise variance disrupts the ODE
+    integration so severely that no usable speech is produced.
+\end{itemize}
+These informal impressions are consistent with the quantitative metrics:
+Method~B produces the largest perceptual style shift, matching its
+highest $\Delta$SIM-B, while Method~A's modest SIM-B gain corresponds to
+a barely perceptible auditory difference.
+
 % ============================================================
 \section{Discussion}
 \label{sec:discussion}
 % ============================================================
 
-\subsection{Cross-Lingual Extension: The Hebrew Case}%
+\subsection{Cross-Lingual Limitation: Hebrew}%
 \label{sec:hebrew}
 
-A natural question is whether F5-TTS can be applied to languages beyond
-English and Chinese, such as Hebrew. The answer is \emph{no}, without
-substantial retraining, for the following architectural reasons.
+F5-TTS cannot be applied to Hebrew without substantial retraining.
+Its character-level tokeniser (2546 tokens) covers only English and Chinese;
+Hebrew characters produce out-of-vocabulary tokens, rendering text
+conditioning meaningless.  Even with vocabulary extension, Hebrew phonology
+includes sounds absent from both training languages (pharyngeal fricatives,
+the approximant \textit{ayin}, the affricate \textit{tsadi}), so the
+learned phoneme--acoustic mapping would not generalise.  Our Extensions~1
+and~2 operate at the acoustic level and presuppose functional text
+conditioning---they cannot compensate for a missing tokeniser.  Meaningful
+Hebrew TTS would require tokeniser extension, a large Hebrew speech corpus,
+and compute-intensive retraining of the 335\,M-parameter model.
 
-\textbf{Tokeniser gap.}
-F5-TTS uses character-level tokenisation with a vocabulary of 2546 tokens
-covering English and Chinese characters exclusively~\cite{chen2025f5tts}.
-Hebrew characters (22 base consonants, 5 final forms, and optional vowel
-diacritics) are absent.  Feeding Hebrew text to the model would produce
-out-of-vocabulary tokens, rendering all text conditioning meaningless.
-
-\textbf{Phoneme–acoustic mapping.}
-Even if Hebrew characters were added to the vocabulary and their embeddings
-randomly initialised, the model's internal mapping from token sequences to
-acoustic patterns is learned entirely from English and Chinese speech data.
-Hebrew phonology includes sounds absent from both English and Chinese:
-the pharyngeal fricative of \textit{het} and \textit{khaf} (as in \textit{Chanukah}),
-the pharyngeal approximant \textit{ayin}, the alveolar affricate \textit{tsadi},
-and the historically distinct uvular stop \textit{qof}.
-None of these phonemes appear in the English or Chinese training distribution
-and cannot be inferred by inspecting mel conditioning signals alone.
-
-\textbf{Why inference-time tricks cannot help.}
-Our Extensions\,1 and~2 operate on the \emph{acoustic} level: they
-manipulate mel spectrograms and ODE trajectories, not token embeddings.
-They are language-agnostic in principle but presuppose that the text
-conditioning is already functional.  If the text tokeniser cannot parse
-Hebrew, no acoustic-level manipulation can compensate.
-
-\textbf{Retraining requirements.}
-Adapting F5-TTS to Hebrew would require: (i) extending the character
-vocabulary and reinitialising the corresponding token embeddings,
-(ii) a large Hebrew speech corpus (the Common Voice Hebrew portion,
-while useful, is orders of magnitude smaller than the 100\,k-hour Emilia
-dataset~\cite{chen2025f5tts} used for original training), and (iii) compute
-resources commensurate with the 335\,M-parameter model's training footprint—
-far beyond the scope of a course project or typical academic research setting
-without dedicated infrastructure.  Unlike fine-tuning small models, adapting
-a 335\,M-parameter DiT to a new language is effectively equivalent to
-retraining from scratch on a joint multilingual corpus.
-
-\subsection{Adversarial Noise Injection: A Security Concern}
+\subsection{A Theoretical Security Concern}%
 \label{sec:security}
 
-Our Extension\,2 demonstrates that the ODE initialisation $x_0$ is a
-controllable inference-time interface.  This observation opens a dual-use
-concern beyond the benign style-transfer application studied here.
-
-\textbf{The attack surface.}
-Adversarial examples~\cite{szegedy2014intriguing,goodfellow2015fgsm}
-exploit the sensitivity of neural networks to imperceptible input
-perturbations.  In discriminative models, the adversarial perturbation is
-added to the \emph{input}; in generative flow-matching models, an analogous
-attack can target \emph{$x_0$}, the initial noise from which generation
-proceeds.  Because $x_0$ occupies the same dimensionality as the target
-mel spectrogram ($T_{\rm mel}\times100$ per sample), it has sufficient
-capacity to encode rich adversarial structure.
-
-\textbf{The threat model.}
-Consider a TTS service that exposes a ``deterministic seed'' parameter
-intended for reproducibility.  An attacker with partial knowledge of the
-model's ODE solver can craft a seed (and thus $x_0$) such that the
-generated speech deviates from what the text and conditioning specify.
-Concretely, a crafted $x_0$ could:
-\begin{itemize}[leftmargin=*]
-  \item Steer the output toward a target mel encoding an unintended
-    utterance (e.g., inserting a harmful statement not present in the
-    input text).
-  \item Embed a covert acoustic signal—imperceptible to the casual listener
-    but detectable by a downstream voice-activated system—effectively
-    encoding a malicious command in the noise initialisation.
-  \item Create a backdoor: a specific $x_0$ pattern that triggers a
-    qualitatively different output regardless of the text conditioning.
-\end{itemize}
-
-\textbf{Connection to our work.}
-Method~A (SDEdit) demonstrates that a structured $x_0 = (1-\alpha)\varepsilon
-+ \alpha\mathbf{m}_B$ systematically shifts the output toward $\mathbf{m}_B$'s
-acoustic properties without touching the conditioning.  A fully adversarial
-variant would compute $\mathbf{m}_B^*$ via gradient-based optimisation
-(analogous to the Carlini--Wagner attack~\cite{carlini2018audio} in the
-audio domain) such that the generated output matches an adversary-specified
-target mel while the crafted noise looks Gaussian to a statistical detector.
-
-\textbf{Mitigation directions.}
-Defences include: (i) refusing externally supplied seeds in production
-APIs (always sample $x_0$ server-side from a cryptographically secure RNG),
-(ii) monitoring the empirical distribution of generated $x_0$ for statistical
-anomalies (a crafted initialisation will deviate from $\mathcal{N}(0,I)$),
-and (iii) adding an output-side safety filter that detects acoustic content
-diverging significantly from the conditioning text.
-We emphasise that this is a \emph{theoretical analysis} based on our
-architectural exploration; demonstrating a working attack is beyond the
-scope of this work and is not attempted.
+Extension~2 demonstrates that $x_0$ is a controllable interface.  This
+opens a dual-use concern: by analogy with adversarial examples in
+discriminative models~\cite{szegedy2014intriguing,goodfellow2015fgsm},
+a crafted $x_0$ could steer the generated speech away from what the text
+and conditioning specify---e.g.\ injecting unintended content or embedding
+covert acoustic commands for downstream voice-activated
+systems~\cite{carlini2018audio}.  Method~A already shows that structured
+$x_0$ systematically shifts the output; a gradient-optimised variant could
+target a specific adversary-chosen mel while appearing statistically
+Gaussian.  Mitigations include server-side sampling of $x_0$ from a
+cryptographically secure RNG, statistical monitoring of submitted noise
+vectors, and output-side safety filters.  We emphasise that this is a
+theoretical observation; no attack is attempted.
 
 % ============================================================
 \section{Conclusion and Future Work}
@@ -830,13 +761,6 @@ J.\ Ho and T.\ Salimans,
 in \textit{NeurIPS 2022 Workshop on DGMs}, 2022.
 arXiv:2207.12598.
 
-\bibitem{chen2018node}
-R.\ T.\ Q.\ Chen, Y.\ Rubanova, J.\ Bettencourt,
-and D.\ K.\ Duvenaud,
-``Neural Ordinary Differential Equations,''
-in \textit{Proc.\ NeurIPS 2018}, 2018.
-arXiv:1806.07366.
-
 \bibitem{radford2023whisper}
 A.\ Radford, J.\ W.\ Kim, T.\ Xu, G.\ Brockman, C.\ McLeavey,
 and I.\ Sutskever,
@@ -872,5 +796,9 @@ in \textit{Proc.\ IEEE Security \& Privacy Workshops (DLS)}, 2018.
 arXiv:1801.01944.
 
 \end{thebibliography}
+
+\medskip\noindent
+\textbf{Code availability.}\quad
+\url{https://github.com/yardencarmel/SigProcForSpeech}
 
 \end{document}
