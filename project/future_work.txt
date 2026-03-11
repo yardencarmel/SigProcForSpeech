@@ -1,0 +1,49 @@
+Deltas for arXiv / lower-tier venue publication
+================================================
+
+1. EVALUATION SCALE (critical)
+   - Current: 3 sentences, 1 speaker pair.
+   - Needed: 20-50 utterances from a standard benchmark (LibriSpeech test-clean,
+     VCTK, or Seed-TTS test-en).
+   - Multiple speaker pairs (at least 3-5, ideally cross-gender).
+   - Error bars / confidence intervals on all metrics.
+
+2. MOS / SUBJECTIVE EVALUATION (critical)
+   - Replace "informal listening impressions" with a proper MOS study.
+   - 10-15 listeners rating naturalness and style similarity on a 1-5 Likert scale.
+   - Even a small-scale study would satisfy reviewers.
+
+3. REPRODUCIBILITY DETAILS
+   - Specify exact software versions (PyTorch, F5-TTS commit hash).
+   - Hardware (GPU model, VRAM).
+   - Wall-clock inference times per method (especially Method B's 2x cost).
+
+4. DEDICATED RELATED WORK SECTION
+   - Currently the intro doubles as related work.
+   - Compare to other inference-time style transfer approaches:
+     prompt-based emotion control, adapter-based methods, NANSY, GenerSpeech.
+   - Position the contribution more clearly against the literature.
+
+5. MEL SPECTROGRAM VISUALISATIONS
+   - Show spectrograms of baseline vs. Method A vs. Method B outputs side-by-side.
+   - Makes the style transfer effect visually concrete for readers.
+
+6. STATISTICAL SIGNIFICANCE
+   - With a larger eval set, report p-values or bootstrapped CIs for the SIM-B
+     improvements (especially Method B's +0.087).
+
+7. SECURITY SECTION EXPANSION
+   - Currently theoretical only.
+   - For a venue like AAAI or Interspeech, either expand with a proof-of-concept
+     (gradient-optimised x_0) or trim to a paragraph.
+   - Currently falls between the two.
+
+8. HEBREW SECTION EXPANSION
+   - Either expand with spectrograms of gibberish output and a proper OOV analysis,
+     or fold into a single discussion paragraph.
+
+9. VENUE SUGGESTIONS
+   - Interspeech (speech-specific, accepts 4-page papers): good fit if eval is scaled up.
+   - SLT / ASRU: workshop-style venues that accept exploratory work.
+   - arXiv preprint: could go up with current content; the community would find the
+     SDEdit-for-flow-matching adaptation and 3D conditioning discovery useful.

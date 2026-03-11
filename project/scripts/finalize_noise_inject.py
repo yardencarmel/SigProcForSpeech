@@ -91,13 +91,8 @@ metrics_cfg = [
     ("mcd_A", "MCD-A (vs identity A)","tab:green"),
 ]
 
-fig, axes = plt.subplots(4, 1, figsize=(7, 18))
-fig.suptitle(
-    "Noise-Injection Style Transfer — SDEdit on Flow Matching\n"
-    "Identity A = basic_ref_en  |  Style B = basic_ref_zh\n"
-    "Each line = one sway coefficient (s);  x-axis = noise level (α)",
-    fontsize=10,
-)
+fig, axes = plt.subplots(4, 1, figsize=(7, 20))
+fig.suptitle("Method A: SDEdit Noise-Injection Sweep", fontsize=16, y=0.995)
 axes = axes.flatten()
 
 for ax, (metric, ylabel, color) in zip(axes, metrics_cfg):
@@ -109,11 +104,12 @@ for ax, (metric, ylabel, color) in zip(axes, metrics_cfg):
         xs = [r["noise_level"] for r in subset]
         ys = [r[metric] for r in subset]
         ax.plot(xs, ys, marker=markers[i], color=colors[i],
-                label=f"sway={sway:+.1f}", linewidth=1.8)
-    ax.set_xlabel("noise_level (α)")
-    ax.set_ylabel(ylabel)
-    ax.set_title(ylabel)
-    ax.legend(fontsize=8)
+                label=f"sway={sway:+.1f}", linewidth=1.8, markersize=8)
+    ax.set_xlabel("Noise level α", fontsize=13)
+    ax.set_ylabel(ylabel, fontsize=13)
+    ax.set_title(ylabel, fontsize=14)
+    ax.tick_params(labelsize=11)
+    ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()

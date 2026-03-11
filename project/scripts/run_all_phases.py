@@ -570,16 +570,18 @@ def plot_sway_sampling(results_dir, plots_dir):
                     xs = [k[0] for k in keys]
                     wers = [np.mean([v[0] for v in agg[k]]) for k in keys]
                     sims = [np.mean([v[1] for v in agg[k]]) for k in keys]
-                    ax1.plot(xs, wers, marker="o", label=f"NFE={nfe}")
-                    ax2.plot(xs, sims, marker="s", label=f"NFE={nfe}")
-                ax1.set_xlabel("Sway Sampling coefficient s")
-                ax1.set_ylabel("WER (%)")
-                ax1.set_title("WER vs Sway Sampling")
-                ax1.legend(); ax1.grid(True)
-                ax2.set_xlabel("Sway Sampling coefficient s")
-                ax2.set_ylabel("SIM-o")
-                ax2.set_title("SIM-o vs Sway Sampling")
-                ax2.legend(); ax2.grid(True)
+                    ax1.plot(xs, wers, marker="o", markersize=8, label=f"NFE={nfe}")
+                    ax2.plot(xs, sims, marker="s", markersize=8, label=f"NFE={nfe}")
+                ax1.set_xlabel("Sway coefficient s", fontsize=13)
+                ax1.set_ylabel("WER (%)", fontsize=13)
+                ax1.set_title("WER vs Sway Coefficient", fontsize=15)
+                ax1.tick_params(labelsize=11)
+                ax1.legend(fontsize=11); ax1.grid(True)
+                ax2.set_xlabel("Sway coefficient s", fontsize=13)
+                ax2.set_ylabel("SIM-o", fontsize=13)
+                ax2.set_title("SIM-o vs Sway Coefficient", fontsize=15)
+                ax2.tick_params(labelsize=11)
+                ax2.legend(fontsize=11); ax2.grid(True)
                 plt.tight_layout()
                 fig.savefig(str(plots_dir / "sway_sampling.png"), dpi=120)
                 plt.close()
@@ -611,13 +613,15 @@ def plot_cfg_strength(results_dir, plots_dir):
                 cfgs = sorted(agg.keys())
                 wers = [np.mean([v[0] for v in agg[c]]) for c in cfgs]
                 sims = [np.mean([v[1] for v in agg[c]]) for c in cfgs]
-                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 8))
-                ax1.plot(cfgs, wers, "o-", color="royalblue")
-                ax1.set_xlabel("CFG strength"); ax1.set_ylabel("WER (%)")
-                ax1.set_title("WER vs CFG strength"); ax1.grid(True)
-                ax2.plot(cfgs, sims, "s-", color="darkorange")
-                ax2.set_xlabel("CFG strength"); ax2.set_ylabel("SIM-o")
-                ax2.set_title("SIM-o vs CFG strength"); ax2.grid(True)
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 10))
+                ax1.plot(cfgs, wers, "o-", color="royalblue", markersize=8)
+                ax1.set_xlabel("CFG strength λ", fontsize=13); ax1.set_ylabel("WER (%)", fontsize=13)
+                ax1.set_title("WER vs CFG Strength", fontsize=15)
+                ax1.tick_params(labelsize=11); ax1.grid(True)
+                ax2.plot(cfgs, sims, "s-", color="darkorange", markersize=8)
+                ax2.set_xlabel("CFG strength λ", fontsize=13); ax2.set_ylabel("SIM-o", fontsize=13)
+                ax2.set_title("SIM-o vs CFG Strength", fontsize=15)
+                ax2.tick_params(labelsize=11); ax2.grid(True)
                 plt.tight_layout()
                 fig.savefig(str(plots_dir / "cfg_strength.png"), dpi=120)
                 plt.close()
@@ -633,27 +637,33 @@ def plot_emotion_weight(results_dir, plots_dir):
         if em_csv.exists():
             with open(em_csv, encoding="utf-8") as f:
                 rows = list(csv.DictReader(f))
-            ws, sims, mcds = [], [], []
+            ws, sims, mcds, ws_mcd = [], [], [], []
             for row in rows:
                 try:
-                    w = float(row["emotion_weight"])
+                    # Skip zero-shot baseline row (duplicate at weight=1.0)
+                    method = row.get("method", "")
+                    if method == "zero_shot_emotion":
+                        continue
+                    w = float(row.get("emotion_weight") or row.get("weight"))
                     sim = float(row["sim_o"]) if row["sim_o"] else None
                     mcd = float(row["mcd"]) if row["mcd"] else None
                     if sim is not None:
                         ws.append(w); sims.append(sim)
                     if mcd is not None:
-                        mcds.append(mcd)
+                        ws_mcd.append(w); mcds.append(mcd)
                 except Exception:
                     pass
             if ws:
-                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 8))
-                ax1.plot(ws[:len(sims)], sims, "o-", color="steelblue")
-                ax1.set_xlabel("Emotion weight"); ax1.set_ylabel("SIM-o")
-                ax1.set_title("Speaker similarity vs emotion weight"); ax1.grid(True)
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 10))
+                ax1.plot(ws[:len(sims)], sims, "o-", color="steelblue", markersize=8)
+                ax1.set_xlabel("Blend weight α", fontsize=13); ax1.set_ylabel("SIM-o", fontsize=13)
+                ax1.set_title("Speaker Similarity vs Blend Weight", fontsize=15)
+                ax1.tick_params(labelsize=11); ax1.grid(True)
                 if mcds:
-                    ax2.plot(ws[:len(mcds)], mcds, "s-", color="firebrick")
-                    ax2.set_xlabel("Emotion weight"); ax2.set_ylabel("MCD (dB)")
-                    ax2.set_title("MCD vs emotion weight"); ax2.grid(True)
+                    ax2.plot(ws_mcd, mcds, "s-", color="firebrick", markersize=8)
+                    ax2.set_xlabel("Blend weight α", fontsize=13); ax2.set_ylabel("MCD (dB)", fontsize=13)
+                    ax2.set_title("MCD vs Blend Weight", fontsize=15)
+                    ax2.tick_params(labelsize=11); ax2.grid(True)
                 plt.tight_layout()
                 fig.savefig(str(plots_dir / "emotion_weight.png"), dpi=120)
                 plt.close()
@@ -681,11 +691,12 @@ def plot_sway_pdf(plots_dir):
             dt = np.where(dt > 0, dt, 1e-6)
             pdf = 1.0 / np.maximum(dt * len(t), 1e-6)
             ax.plot(f[1:], pdf, label=f"s={s:+.1f}")
-        ax.set_xlabel("t"); ax.set_ylabel("π(t) density")
+        ax.set_xlabel("Timestep t", fontsize=15); ax.set_ylabel("π(t) density", fontsize=15)
         ax.set_ylim(10**-0.5, 10**1.5)
-        ax.set_title("Sway Sampling: ODE timestep distribution π(t)")
+        ax.set_title("Sway Sampling Timestep Distribution", fontsize=17)
         ax.set_yscale("log")
-        ax.legend(); ax.grid(True, alpha=0.4)
+        ax.tick_params(labelsize=13)
+        ax.legend(fontsize=10, loc="upper right"); ax.grid(True, alpha=0.4)
         plt.tight_layout()
         fig.savefig(str(plots_dir / "sway_pdf.png"), dpi=120)
         plt.close()

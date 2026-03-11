@@ -334,44 +334,71 @@ def _plot_heatmaps(rows, alphas, sways, out_dir):
 
 
 def _plot_tradeoff(rows, out_dir):
-    """WER vs SIM-B scatter, coloured by alpha, sized by sway."""
+    """WER vs SIM-B scatter, coloured by alpha — split into two WER ranges."""
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import matplotlib.cm as cm
 
-        fig, ax = plt.subplots(figsize=(10, 7))
         alphas_unique = sorted(set(r["noise_level"] for r in rows))
         cmap = cm.get_cmap("plasma", len(alphas_unique))
         color_map = {a: cmap(i) for i, a in enumerate(alphas_unique)}
 
+        # Collect valid points
+        points = []
         for r in rows:
             wer  = r["wer"]
             simb = r["sim_B"]
             if not isinstance(wer, (int, float)) or not isinstance(simb, (int, float)):
                 continue
-            alpha = r["noise_level"]
-            sway  = r["sway_coef"]
-            ax.scatter(wer, simb, color=color_map[alpha],
-                       s=60, alpha=0.7, edgecolors="none")
+            points.append((wer, simb, r["noise_level"]))
 
-        # Colour legend
+        # --- Panel (a): WER 0–200 ---
+        fig, ax = plt.subplots(figsize=(10, 7))
+        pts_a = [(w, s, a) for w, s, a in points if w <= 200]
+        for w, s, a in pts_a:
+            ax.scatter(w, s, color=color_map[a],
+                       s=120, alpha=0.85, edgecolors="white", linewidths=0.7)
         for a in alphas_unique:
-            ax.scatter([], [], color=color_map[a], label=f"α={a:.2f}", s=50)
-        ax.legend(title="noise_level α", fontsize=7, loc="upper right", ncol=2)
-
-        ax.axvline(20, color="gray", linestyle="--", alpha=0.5, label="WER=20% threshold")
-        ax.set_xlabel("WER (%)")
-        ax.set_ylabel("SIM-B (style acquisition)")
-        ax.set_title("Method A: WER vs SIM-B trade-off\n"
-                     "Ideal region: low WER + high SIM-B (top-left)")
+            ax.scatter([], [], color=color_map[a], label=f"α={a:.2f}", s=100)
+        ax.legend(title="noise_level α", fontsize=14, title_fontsize=15,
+                  loc="upper right", ncol=2)
+        ax.axvline(20, color="gray", linestyle="--", alpha=0.5)
+        ax.set_xlim(-5, 205)
+        ax.set_xlabel("WER (%)", fontsize=17)
+        ax.set_ylabel("SIM-B (style acquisition)", fontsize=17)
+        ax.set_title("Method A: WER vs SIM-B Trade-off (WER ≤ 200%)", fontsize=19)
+        ax.tick_params(labelsize=14)
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        p = out_dir / "tradeoff_wer_simb.png"
+        p = out_dir / "tradeoff_wer_simb_a.png"
         plt.savefig(str(p), dpi=150)
         plt.close()
-        print(f"[OK] Trade-off plot -> {p}")
+        print(f"[OK] Trade-off plot (a) -> {p}")
+
+        # --- Panel (b): WER 500–2500 ---
+        fig, ax = plt.subplots(figsize=(10, 7))
+        pts_b = [(w, s, a) for w, s, a in points if w >= 500]
+        for w, s, a in pts_b:
+            ax.scatter(w, s, color=color_map[a],
+                       s=120, alpha=0.85, edgecolors="white", linewidths=0.7)
+        for a in alphas_unique:
+            ax.scatter([], [], color=color_map[a], label=f"α={a:.2f}", s=100)
+        ax.legend(title="noise_level α", fontsize=14, title_fontsize=15,
+                  loc="upper right", ncol=2)
+        ax.set_xlim(450, 2550)
+        ax.set_xlabel("WER (%)", fontsize=17)
+        ax.set_ylabel("SIM-B (style acquisition)", fontsize=17)
+        ax.set_title("Method A: WER vs SIM-B Trade-off (WER ≥ 500%)", fontsize=19)
+        ax.tick_params(labelsize=14)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        p = out_dir / "tradeoff_wer_simb_b.png"
+        plt.savefig(str(p), dpi=150)
+        plt.close()
+        print(f"[OK] Trade-off plot (b) -> {p}")
+
     except Exception as e:
         print(f"[tradeoff plot] {e}")
 

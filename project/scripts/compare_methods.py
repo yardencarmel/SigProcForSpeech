@@ -148,12 +148,7 @@ def plot_metric_trends(all_rows: dict[str, list[dict]], out_dir: Path, methods: 
         ]
 
         fig, axes = plt.subplots(4, 1, figsize=(7, 20))
-        fig.suptitle(
-            "Style Transfer Method Comparison — F5-TTS Flow Matching\n"
-            "Identity A = basic_ref_en  |  Style B = basic_ref_zh\n"
-            "Best sway_coef selected per primary parameter value",
-            fontsize=11,
-        )
+        fig.suptitle("Style Transfer Method Comparison", fontsize=16)
         axes = axes.flatten()
 
         for ax, (metric, ylabel, hib, note) in zip(axes, metrics_cfg):
@@ -173,14 +168,15 @@ def plot_metric_trends(all_rows: dict[str, list[dict]], out_dir: Path, methods: 
                 if not xs_num:
                     continue
                 ax.plot(xs_num, ys_num,
-                        marker="o", linewidth=2,
+                        marker="o", linewidth=2, markersize=8,
                         color=METHOD_COLORS.get(mkey, "black"),
                         label=f"{mkey}: {METHOD_LABELS[mkey].split('—')[1].strip()}")
 
-            ax.set_xlabel("Primary parameter (α / guidance_scale / switch_point)")
-            ax.set_ylabel(ylabel)
-            ax.set_title(f"{ylabel}\n({note})")
-            ax.legend(fontsize=7)
+            ax.set_xlabel("Primary parameter", fontsize=12)
+            ax.set_ylabel(ylabel, fontsize=12)
+            ax.set_title(ylabel, fontsize=14)
+            ax.tick_params(labelsize=10)
+            ax.legend(fontsize=10)
             ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -201,13 +197,7 @@ def plot_scatter(all_rows: dict[str, list[dict]], out_dir: Path, methods: list[s
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(9, 7))
-        ax.set_title(
-            "Identity Preservation vs Style Acquisition\n"
-            "SIM-A = cosine similarity to identity speaker A\n"
-            "SIM-B = cosine similarity to style speaker B\n"
-            "(ideal = high SIM-A and high SIM-B)",
-            fontsize=10,
-        )
+        ax.set_title("Identity Preservation vs Style Acquisition", fontsize=16)
 
         for mkey in methods:
             rows = all_rows.get(mkey, [])
@@ -222,11 +212,12 @@ def plot_scatter(all_rows: dict[str, list[dict]], out_dir: Path, methods: list[s
             ax.scatter(xs, ys,
                        color=METHOD_COLORS.get(mkey, "black"),
                        label=f"{mkey}: {METHOD_LABELS[mkey].split('—')[1].strip()}",
-                       alpha=0.8, s=60, edgecolors="white", linewidths=0.5)
+                       alpha=0.85, s=100, edgecolors="white", linewidths=0.7)
 
-        ax.set_xlabel("SIM-A (identity preservation)  →  higher = better")
-        ax.set_ylabel("SIM-B (style acquisition)  →  higher = better")
-        ax.legend(fontsize=8, loc="best")
+        ax.set_xlabel("SIM-A (identity preservation)", fontsize=15)
+        ax.set_ylabel("SIM-B (style acquisition)", fontsize=15)
+        ax.tick_params(labelsize=13)
+        ax.legend(fontsize=13, loc="best")
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -247,12 +238,7 @@ def plot_wer_vs_simB(all_rows: dict[str, list[dict]], out_dir: Path, methods: li
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(9, 7))
-        ax.set_title(
-            "Intelligibility vs Style Acquisition\n"
-            "WER = word error rate (lower = better intelligibility)\n"
-            "SIM-B = style similarity to B (higher = more style transferred)",
-            fontsize=10,
-        )
+        ax.set_title("Intelligibility vs Style Acquisition", fontsize=16)
 
         for mkey in methods:
             rows = all_rows.get(mkey, [])
@@ -267,11 +253,12 @@ def plot_wer_vs_simB(all_rows: dict[str, list[dict]], out_dir: Path, methods: li
             ax.scatter(xs, ys,
                        color=METHOD_COLORS.get(mkey, "black"),
                        label=f"{mkey}: {METHOD_LABELS[mkey].split('—')[1].strip()}",
-                       alpha=0.8, s=60, edgecolors="white", linewidths=0.5)
+                       alpha=0.85, s=100, edgecolors="white", linewidths=0.7)
 
-        ax.set_xlabel("WER (%)  ←  lower = better intelligibility")
-        ax.set_ylabel("SIM-B (style acquisition)  →  higher = more style")
-        ax.legend(fontsize=8, loc="best")
+        ax.set_xlabel("WER (%)", fontsize=13)
+        ax.set_ylabel("SIM-B (style acquisition)", fontsize=13)
+        ax.tick_params(labelsize=11)
+        ax.legend(fontsize=11, loc="best")
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
