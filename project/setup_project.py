@@ -136,17 +136,23 @@ def install_dependencies(project_dir, venv_dir, f5_dir):
         print("[OK] pip upgraded")
 
     # Install PyTorch with CUDA (user should adjust for their CUDA version)
-    print("[INFO] Installing PyTorch (adjust CUDA version if needed)...")
+    print("[INFO] Installing PyTorch (adjust CUDA version if needed)... this might take a while...")
     run_command(
         f'"{pip_path}" install torch torchaudio --index-url https://download.pytorch.org/whl/cu121',
         check=False  # May fail if no internet, continue anyway
     )
 
     # Install F5-TTS in editable mode
-    print("[INFO] Installing F5-TTS in editable mode...")
+    print("[INFO] Installing F5-TTS in editable mode... this might take a while...")
     result = run_command(f'"{pip_path}" install -e "{f5_dir}"', check=False)
     if result is None:
         print("[WARNING] F5-TTS editable install failed (non-critical, continuing...)")
+
+    # Remove torchcodec — it's pulled in by F5-TTS but doesn't work on Windows
+    # (missing FFmpeg DLLs) and is not needed for TTS/audio inference.
+    print("[INFO] Removing torchcodec (Windows-incompatible, not needed for TTS)...")
+    run_command(f'"{pip_path}" uninstall torchcodec -y', check=False)
+    print("[OK] torchcodec removed")
 
     # Install project requirements
     req_file = project_dir / "requirements.txt"
@@ -217,9 +223,7 @@ def print_next_steps(project_dir, venv_dir):
    {activate_cmd}
 
 2. Run the English baseline:
-   python scripts/run_all_phases.py \\
-       --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav \\
-       --phases 1
+   python scripts/run_all_phases.py --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav --phases 1
 
 3. Run style transfer (direct mel injection):
    python scripts/run_phase4.py
@@ -279,6 +283,9 @@ def main():
         result = run_command(f'"{py}" -m pip install -e "{f5_dir}"', check=False)
         if result is None:
             print("[WARNING] F5-TTS editable install failed (non-critical, continuing...)")
+        # Remove torchcodec — Windows-incompatible, not needed for TTS
+        run_command(f'"{py}" -m pip uninstall torchcodec -y', check=False)
+        print("[OK] torchcodec removed")
         req_file = project_dir / "requirements.txt"
         if req_file.exists():
             result = run_command(f'"{py}" -m pip install -r "{req_file}"', check=False)
