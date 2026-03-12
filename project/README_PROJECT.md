@@ -12,7 +12,7 @@ This project extends [F5-TTS](https://github.com/SWivid/F5-TTS) (Chen et al., AC
 
 ## Quick Start (fresh clone)
 
-> Tested on Linux with Python 3.10+. A GPU is strongly recommended for inference.
+> Tested on Windows and Linux with Python 3.10+. A GPU is strongly recommended for inference.
 
 ### 1. Clone the repo
 
@@ -105,13 +105,14 @@ Both improvements address this gap directly.
 | Sway Sampling ablation (Phase 2) | Done |
 | CFG strength ablation (Phase 2) | Done |
 | Style transfer — mel injection (`run_phase4.py`) | Done |
-| Method A — SDEdit noise injection (`run_noise_inject.py`) | Done |
-| Method B — Style Guidance 2-pass ODE (`run_style_guidance.py`) | Ready to run |
-| Method C — Scheduled Conditioning (`run_scheduled_cond.py`) | Ready to run |
-| Method D — Noise Stats Transfer (`run_noise_stats.py`) | Ready to run |
-| Cross-method comparison (`compare_methods.py`) | Ready (run after A–D) |
+| Method A — SDEdit noise injection (`run_noise_inject.py`) | Done (315-run fine grid) |
+| Method B — Style Guidance 2-pass ODE (`run_style_guidance.py`) | Done |
+| Method C — Scheduled Conditioning (`run_scheduled_cond.py`) | Done |
+| Method D — Noise Stats Transfer (`run_noise_stats.py`) | Done |
+| Cross-method comparison (`compare_methods.py`) | Done |
 | Metrics — WER / SIM-A / SIM-B / MCD | Done |
 | Plots | Done |
+| Paper (`paper.tex` / `paper.pdf`) | Done |
 
 ---
 
@@ -149,56 +150,49 @@ python scripts/run_phase4.py \
 ### Method A — SDEdit noise injection
 
 ```bash
-python scripts/run_noise_inject.py \
-    --identity path/to/identity_speaker.wav \
-    --emotion  path/to/style_speaker.wav \
-    --text "The situation has become completely unacceptable." \
-    --noise_levels 0.0 0.1 0.2 0.3 0.5 0.7 \
-    --sways -1.0 -0.4 0.0
+python scripts/run_noise_inject.py
+python scripts/run_noise_inject.py --device cpu
+python scripts/run_noise_inject.py --resume   # skip already-generated WAVs
 ```
 
+Fine-grained sweep: 15 alpha values (0.00–0.70) × 21 sway values (-1.0–1.0) = 315 runs.
 Biases the ODE starting point: `x_0 = (1-α)*randn + α*mel_B`, then integrates
-conditioned on mel_A. Results go to `results/noise_inject/`.
+conditioned on mel_A. Produces 2-D heatmaps (WER/SIM-A/SIM-B/MCD) and best-combination
+tables. Results go to `results/noise_inject/method_A/`.
 
 ### Method B — Style Guidance (2-pass ODE extrapolation)
 
 ```bash
-python scripts/run_style_guidance.py \
-    --identity path/to/identity_speaker.wav \
-    --emotion  path/to/style_speaker.wav \
-    --guidance_scales 0.0 0.5 1.0 1.5 2.0 \
-    --sways -1.0 0.0
+python scripts/run_style_guidance.py
+python scripts/run_style_guidance.py --device cpu
 ```
 
+Sweeps guidance_scale ∈ {0.0, 0.5, 1.0, 1.5, 2.0} × sway ∈ {-1.0, 0.0} (10 runs).
 Runs the transformer twice per ODE step (identity + style) and extrapolates:
-`vf = vf_A + guidance_scale * (vf_B - vf_A)`. Results go to `results/style_guidance/`.
+`vf = vf_A + guidance_scale * (vf_B - vf_A)`. Results go to `results/noise_inject/method_B/`.
 
 ### Method C — Scheduled Conditioning Blend
 
 ```bash
-python scripts/run_scheduled_cond.py \
-    --identity path/to/identity_speaker.wav \
-    --emotion  path/to/style_speaker.wav \
-    --switch_points 0.0 0.25 0.5 0.75 1.0 \
-    --sways -1.0 0.0
+python scripts/run_scheduled_cond.py
+python scripts/run_scheduled_cond.py --device cpu
 ```
 
+Sweeps switch_point ∈ {0.0, 0.25, 0.5, 0.75, 1.0} × sway ∈ {-1.0, 0.0} (10 runs).
 Switches conditioning from mel_B to mel_A at a programmable ODE time `t*`:
 early steps (t < t*) use style B, late steps use identity A. Results go to
-`results/scheduled_cond/`.
+`results/noise_inject/method_C/`.
 
 ### Method D — Noise Statistics Transfer
 
 ```bash
-python scripts/run_noise_stats.py \
-    --identity path/to/identity_speaker.wav \
-    --emotion  path/to/style_speaker.wav \
-    --noise_levels 0.0 0.1 0.2 0.3 0.5 0.7 \
-    --sways -1.0 0.0
+python scripts/run_noise_stats.py
+python scripts/run_noise_stats.py --device cpu
 ```
 
+Sweeps alpha ∈ {0.0, 0.1, 0.2, 0.3, 0.5, 0.7} × sway ∈ {-1.0, 0.0} (12 runs).
 Rescales starting noise to match mel_B's global statistics (mean, std) without
-copying specific frames. Results go to `results/noise_stats/`.
+copying specific frames. Results go to `results/noise_inject/method_D/`.
 
 ### Cross-method comparison (run after all methods)
 
@@ -206,9 +200,9 @@ copying specific frames. Results go to `results/noise_stats/`.
 python scripts/compare_methods.py --methods A B C D
 ```
 
-Reads `results_metrics.csv` from each method, generates comparison plots
+Reads `results_metrics.csv` from each method directory, generates comparison plots
 (trends, scatter, WER-vs-SIM-B), a combined CSV, and a mathematical chapter.
-Results go to `results/comparison/`.
+Results go to `results/noise_inject/comparison/`.
 
 ---
 
@@ -237,7 +231,7 @@ python scripts/run_phase4.py   # sweeps w in {0.0, 0.25, 0.50, 0.75, 1.00}
 ### Noise injection sweep (Method A)
 
 ```bash
-python scripts/run_noise_inject.py   # sweeps alpha × sway (18 total runs)
+python scripts/run_noise_inject.py   # sweeps alpha × sway (315 total runs)
 ```
 
 ### Extended sweeps (Methods B, C, D)
@@ -284,9 +278,13 @@ python scripts/compare_methods.py      # aggregates all results
 | 0.75 | 0.0 | 0.812 | 832 |
 | 1.00 | 0.0 | 0.811 | 919 |
 
-### Noise injection sweep
+### Noise injection sweep (Method A)
 
-See `results/noise_inject/results_metrics.csv` and `results/noise_inject/noise_inject_sweep.png`.
+See `results/noise_inject/method_A/results_metrics.csv` and heatmap plots in `results/noise_inject/method_A/`.
+
+### Cross-method comparison
+
+See `results/noise_inject/comparison/combined_metrics.csv` and comparison plots in `results/noise_inject/comparison/`.
 
 ---
 
@@ -297,30 +295,37 @@ project/
 ├── README_PROJECT.md              # This file
 ├── requirements.txt               # Python dependencies
 ├── setup_project.py               # One-time environment setup helper (legacy)
+├── paper.tex                      # Project paper (LaTeX source)
+├── paper.pdf                      # Compiled paper
+├── base_article.pdf               # Original F5-TTS paper (reference)
+├── future_work.txt                # Notes on future improvements for publication
+├── Presentation F5-TTS v2.pptx    # Project presentation slides
 ├── scripts/
 │   ├── run_all_phases.py          # Phases 1+2+5: baseline, ablations, eval
 │   ├── run_phase4.py              # Style transfer: direct mel injection
-│   ├── run_noise_inject.py        # Method A — SDEdit noise injection sweep
+│   ├── run_noise_inject.py        # Method A — SDEdit noise injection (315-run grid)
 │   ├── run_style_guidance.py      # Method B — 2-pass ODE style guidance
 │   ├── run_scheduled_cond.py      # Method C — Scheduled conditioning blend
 │   ├── run_noise_stats.py         # Method D — Noise statistics transfer
 │   ├── compare_methods.py         # Cross-method comparison plots + CSV
 │   ├── compute_noise_inject_metrics.py  # Metrics for pre-generated audio
-│   └── finalize_noise_inject.py   # Parse log → CSV + plot
+│   └── finalize_noise_inject.py   # Parse log → CSV + plot (legacy)
+├── samples/                       # Hebrew reference audio files
 ├── F5-TTS/                        # Cloned F5-TTS repo (gitignored)
 ├── .venv/                         # Virtual environment (gitignored)
 ├── data/                          # Dataset files (gitignored)
-├── ckpts/                         # Model checkpoints (gitignored)
-└── results/                       # Generated audio + metrics (gitignored)
+└── results/                       # Generated audio + metrics
     ├── phase1/english/            # 5 English zero-shot WAVs
     ├── sway_sampling/             # 45 WAVs + results_metrics.csv
     ├── cfg_strength/              # 15 WAVs + results_metrics.csv
-    ├── emotion_transfer/          # 6 WAVs + results_metrics.csv + plot
-    ├── noise_inject/              # 18 WAVs + results_metrics.csv + plot  (Method A)
-    ├── style_guidance/            # 10 WAVs + results_metrics.csv + plot  (Method B)
-    ├── scheduled_cond/            # 10 WAVs + results_metrics.csv + plot  (Method C)
-    ├── noise_stats/               # 12 WAVs + results_metrics.csv + plot  (Method D)
-    ├── comparison/                # combined_metrics.csv + comparison plots
+    ├── emotion_transfer/          # WAVs + results_metrics.csv + plot
+    ├── noise_inject/              # All noise-injection methods
+    │   ├── method_A/              # SDEdit sweep: heatmaps + best_combinations.txt
+    │   ├── method_B/              # Style Guidance sweep + plot
+    │   ├── method_C/              # Scheduled Conditioning sweep + plot
+    │   ├── method_D/              # Noise Stats Transfer sweep + plot
+    │   └── comparison/            # combined_metrics.csv + comparison plots
+    ├── summary_table.csv          # Aggregate results across phases
     └── plots/                     # sway_sampling, cfg_strength, emotion_weight, sway_pdf
 ```
 

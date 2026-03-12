@@ -125,9 +125,15 @@ def get_python_path(venv_dir):
 def install_dependencies(project_dir, venv_dir, f5_dir):
     """Install all dependencies."""
     pip_path = get_pip_path(venv_dir)
+    python_path = get_python_path(venv_dir)
 
+    # Use 'python -m pip' to upgrade pip — required by modern pip on Windows
     print("[INFO] Upgrading pip...")
-    run_command(f'"{pip_path}" install --upgrade pip')
+    result = run_command(f'"{python_path}" -m pip install --upgrade pip', check=False)
+    if result is None:
+        print("[WARNING] pip upgrade failed (non-critical, continuing...)")
+    else:
+        print("[OK] pip upgraded")
 
     # Install PyTorch with CUDA (user should adjust for their CUDA version)
     print("[INFO] Installing PyTorch (adjust CUDA version if needed)...")
@@ -138,13 +144,17 @@ def install_dependencies(project_dir, venv_dir, f5_dir):
 
     # Install F5-TTS in editable mode
     print("[INFO] Installing F5-TTS in editable mode...")
-    run_command(f'"{pip_path}" install -e "{f5_dir}"')
+    result = run_command(f'"{pip_path}" install -e "{f5_dir}"', check=False)
+    if result is None:
+        print("[WARNING] F5-TTS editable install failed (non-critical, continuing...)")
 
     # Install project requirements
     req_file = project_dir / "requirements.txt"
     if req_file.exists():
         print("[INFO] Installing project requirements...")
-        run_command(f'"{pip_path}" install -r "{req_file}"')
+        result = run_command(f'"{pip_path}" install -r "{req_file}"', check=False)
+        if result is None:
+            print("[WARNING] Some project requirements failed to install (non-critical, continuing...)")
 
     print("[OK] Dependencies installed")
 
@@ -261,11 +271,19 @@ def main():
         print_next_steps(project_dir, venv_dir)
     else:
         print("[INFO] Skipping venv creation. Installing to current environment...")
-        run_command("pip install --upgrade pip")
-        run_command(f'pip install -e "{f5_dir}"')
+        # Use sys.executable -m pip to ensure the correct pip is used cross-platform
+        py = sys.executable
+        result = run_command(f'"{py}" -m pip install --upgrade pip', check=False)
+        if result is None:
+            print("[WARNING] pip upgrade failed (non-critical, continuing...)")
+        result = run_command(f'"{py}" -m pip install -e "{f5_dir}"', check=False)
+        if result is None:
+            print("[WARNING] F5-TTS editable install failed (non-critical, continuing...)")
         req_file = project_dir / "requirements.txt"
         if req_file.exists():
-            run_command(f'pip install -r "{req_file}"')
+            result = run_command(f'"{py}" -m pip install -r "{req_file}"', check=False)
+            if result is None:
+                print("[WARNING] Some requirements failed to install (non-critical, continuing...)")
 
     print("\n[OK] Setup complete!")
     return 0

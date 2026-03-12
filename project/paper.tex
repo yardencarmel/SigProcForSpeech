@@ -91,8 +91,8 @@
 F5-TTS~\cite{chen2025f5tts} is a state-of-the-art zero-shot text-to-speech
 system based on Conditional Flow Matching (CFM) and Diffusion Transformers.
 Despite its impressive voice-cloning capability, the paper explicitly
-identifies the absence of fine-grained paralinguistic control-particularly
-emotion-as a key limitation.  We reproduce the paper's sway-sampling and
+identifies the absence of fine-grained paralinguistic control - particularly
+emotion - as a key limitation.  We reproduce the paper's sway-sampling and
 classifier-free guidance ablations, confirming that $s{=}{-}0.8$, NFE$=32$
 achieves 0\,\% word error rate.  We then introduce two complementary
 inference-time extensions that require no retraining.
@@ -153,7 +153,7 @@ Despite these gains, F5-TTS's own conclusion notes a critical gap:
 \emph{``F5-TTS lacks fine-grained control of paralinguistic details,
 e.g.\ emotion.''}~\cite{chen2025f5tts}.
 The model can replicate \emph{who} is speaking but cannot independently
-control \emph{how} they speak-their emotional tone, energy, or prosodic style.
+control \emph{how} they speak - their emotional tone, energy, or prosodic style.
 Addressing this gap is the central motivation of this work.
 We use ``style transfer'' broadly to encompass any inference-time
 manipulation that shifts the acoustic characteristics of generated speech
@@ -197,23 +197,34 @@ F5-TTS generates mel spectrograms by solving an ODE:
   &\psi_0(x_0)=x_0,\quad \psi_1(x_0)=x_1,
   \label{eq:ode}
 \end{align}
-where $x_0\sim\mathcal{N}(0,I)$ is sampled noise,
-$x_1$ is the target mel spectrogram,
-$v_t$ is a DiT vector field, and
-$c=(x_{\mathrm{ref}},\,z_{\mathrm{ref{\cdot}gen}})$ is the conditioning
-(reference mel concatenated with the character sequence along the time axis).
-Training uses the Conditional Flow Matching objective~\cite{lipman2023flow},
-which directly regresses the ground-truth transport vector field without
-requiring a DDPM noise schedule~\cite{ho2020ddpm}.
+The ODE transforms a random noise sample
+$x_0\sim\mathcal{N}(0,I)$ into a clean mel spectrogram $x_1$.
+At every timestep $t$, the learned vector field $v_t$ tells the solver
+which direction to move, given the current state and a conditioning signal
+$c=(x_{\mathrm{ref}},\,z_{\mathrm{ref{\cdot}gen}})$ - the reference
+speaker's mel concatenated with the target character sequence along the
+time axis.
+The model is trained with the Conditional Flow Matching
+objective~\cite{lipman2023flow}: rather than learning to reverse a
+many-step noising process as in DDPM~\cite{ho2020ddpm}, it learns the
+velocity $v_t$ along a straight path that connects each noise sample to
+its corresponding clean mel, making both training and inference simpler.
 
-Classifier-free guidance~\cite{ho2022cfg} is applied during inference:
+At inference time, classifier-free guidance (CFG)~\cite{ho2022cfg}
+strengthens the influence of the conditioning signal.  The model is
+evaluated twice per ODE step: once with the full conditioning $c$
+(reference mel + text) and once with the conditioning dropped
+($\varnothing$).  The difference between these two outputs isolates the
+effect of the conditioning; scaling it by a factor $\lambda$ controls how
+strongly the output follows the reference speaker:
 \begin{align}
   v_{\rm guided} &= v_t(x,\varnothing)\notag\\
-    &\quad+ \lambda\bigl[v_t(x,c)-v_t(x,\varnothing)\bigr],
+    &\quad+ \lambda\bigl[v_t(x,c)-v_t(x,\varnothing)\bigr].
   \label{eq:cfg}
 \end{align}
-where $\varnothing$ denotes a dropped (null) conditioning and $\lambda$ is
-the guidance strength.
+When $\lambda=1$ the conditioning acts at its natural strength; $\lambda>1$
+amplifies it, improving speaker fidelity at the risk of reduced
+intelligibility (as confirmed by the ablation in Section~\ref{sec:baseline}).
 
 \subsection{Sway Sampling}
 \label{sec:sway}
@@ -224,7 +235,7 @@ F5-TTS replaces the uniform ODE timestep grid with a non-uniform schedule
   \label{eq:sway}
 \end{equation}
 which, for $s<0$, concentrates function evaluations near the noisy end
-$(t\approx 0)$.  The paper demonstrates that $s=-1$ with NFE$=32$ minimises
+$(t\approx 0)$.  The paper demonstrates that $s=-1$ with NFE = 32 minimises
 WER~\cite{chen2025f5tts}.
 
 \subsection{Evaluation Metrics}
@@ -276,16 +287,25 @@ $-1.0$ & 32 &  7.4 & 0.802  \\
 \end{tabular}
 \end{table}
 
-Key finding: $s=-0.8$ with NFE$=32$ achieves 0\,\% WER on all three
+Key finding: $s=-0.8$ with NFE = 32 achieves 0\,\% WER on all three
 sentences.  The qualitative trend matches the base article's Fig.\,3
 (right panel): WER decreases monotonically as $s$ becomes more
 negative, and the benefit is largest in the low-NFE regime-at
-NFE$=8$, $s=-1.0$ yields a +67\,pp WER reduction over $s=+0.4$.
-Note that Fig.\,3 of the base article reports results for 155\,M small
+NFE = 8, $s=-1.0$ yields a 67\,\% WER reduction over $s=+0.4$.
+Conversely, SIM-o rises as $s$ moves toward positive values
+(0.784 at $s{=}{-}0.8$ vs.\ 0.836 at $s{=}0.0$).  This reveals an
+intelligibility-fidelity trade-off inherent to sway sampling:
+negative $s$ concentrates ODE evaluations near the noisy end
+($t\approx 0$), where coarse structure such as word identity is
+resolved, but leaves fewer steps near the clean end ($t\approx 1$),
+where fine-grained speaker characteristics are refined.  Positive $s$
+reverses this allocation, improving speaker similarity at the cost of
+intelligibility.
+Note that Fig.\,3 of the base article reports results for 155\,M parameters small
 models on Seed-TTS \emph{test-zh} (Mandarin), whereas our sweep uses
 the 336\,M base model on three English sentences; the trend's
 consistency across model scale and language strengthens the finding.
-Our $s=-1$, NFE$=32$ result (WER\,=\,7.4\,\%, SIM-o\,=\,0.802) is the
+Our $s=-1$, $\text{NFE} = 32$ result (WER\,=\,7.4\,\%, SIM-o\,=\,0.802) is the
 closest point of comparison with the base article's Table\,2, which
 reports WER\,=\,1.83\,\% and SIM-o\,=\,0.67 on Seed-TTS \emph{test-en}
 under identical hyperparameters; the gap is attributable to our much
@@ -370,7 +390,7 @@ a dormant branch:
 \texttt{if cond.ndim == 2:}\;\text{convert waveform}\rightarrow\text{mel}
 \end{equation*}
 When a 3D tensor \texttt{cond} $\in\mathbb{R}^{B\times T\times 100}$ is
-passed, the conversion is skipped entirely-the caller supplies the mel
+passed, the conversion is skipped entirely - the caller supplies the mel
 directly.  This interface, present in the published codebase but unexploited
 in the official CLI, enables us to inject \emph{arbitrary} mel tensors as
 conditioning with zero architectural change.
@@ -393,17 +413,22 @@ in-distribution - even though the model never saw a blended
 conditioning signal during training.
 
 \textbf{Why not blend waveforms or invert first?}
-Waveform mixing causes phase interference that destroys spectral structure.
-Blending in mel space then inverting via Vocos fails at intermediate weights:
-a linearly blended mel is out-of-distribution for the vocoder, producing
-clipped, ~1\,s garbled outputs (100\,\% WER at $\alpha\in(0.1,0.9)$ in our v1
-experiments).  Direct 3D injection bypasses Vocos inversion entirely.
+We considered two simpler alternatives but both fail.
+Mixing raw waveforms causes phase cancellation between the two signals,
+destroying the spectral structure the model relies on.
+Blending in mel space and then converting back to audio via the Vocos
+vocoder also fails: the vocoder has never seen a blended mel during
+training, so at intermediate weights ($\alpha\in(0.1,0.9)$) it produces
+short, garbled clips (100\,\% WER in our early experiments).
+Our solution - injecting the blended mel directly into the transformer's
+conditioning input - avoids the vocoder entirely and keeps the signal
+in the representation space the model already understands.
 
 \textbf{Important limitation.}
 A mel spectrogram encodes identity (vocal tract shape, voice quality),
 prosody (pitch, rate, energy), and emotional style \emph{jointly}.
 Linear blending therefore produces an acoustic morph between the two
-speakers-not ``A's voice with B's emotion.''  True identity-preserving
+speakers - not ``A's voice with B's emotion.''  True identity-preserving
 emotion transfer would require a disentangled representation (separate
 speaker and emotion encoders) that F5-TTS does not possess.
 
@@ -538,7 +563,7 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
     \label{fig:tradeoff-b}
   \end{subfigure}
   \caption{Method~A: WER vs.\ SIM-B scatter for all $(\alpha, s)$ pairs in the
-  fine-grained sweep.  Each point is one inference; colour encodes $\alpha$.}
+  fine-grained sweep.  Each point is one inference; colour encodes $\alpha$. WER above 100\% symbolizes words generation that are not present at the target's text input.}
   \label{fig:tradeoff}
 \end{figure}
 
@@ -546,22 +571,35 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
 \subsection{Method B - Style Guidance (2-Pass ODE)}
 
 \textbf{Formulation.}
-At each ODE step the transformer is evaluated twice:
+At each ODE step the transformer is evaluated twice - once
+conditioned on the identity reference $\mathbf{m}_A$ and once on the
+style reference $\mathbf{m}_B$ - to produce two velocity proposals
+$v_A$ and $v_B$.  These are blended into a single update direction:
 \begin{equation}
   v_{\rm style} = v_A + g\,(v_B - v_A),
   \label{eq:methb}
 \end{equation}
-where $v_A = v_{\rm guided}(x,\mathbf{m}_A,t)$ and
-$v_B = v_{\rm guided}(x,\mathbf{m}_B,t)$, and $g$ is the guidance scale.
-This is structurally identical to classifier-free guidance
-(Eq.~\ref{eq:cfg}), with $\mathbf{m}_A$ playing the role of the
-unconditional baseline.  The computational cost doubles (2$\times$
-transformer evaluations per step).
+where $v_A = v_{\rm guided}(x,\mathbf{m}_A,t)$,\;
+$v_B = v_{\rm guided}(x,\mathbf{m}_B,t)$, and $g$ is the style
+guidance scale.  The resulting $v_{\rm style}$ replaces the usual
+velocity $v_t$ in the ODE solver (Eq.~\ref{eq:ode}): at every
+integration step the solver advances $x$ in the direction of
+$v_{\rm style}$ rather than the single-speaker velocity, steering the
+trajectory toward $B$'s acoustic characteristics while remaining
+anchored to $A$'s identity.
+This is structurally analogous to classifier-free guidance
+(Eq.~\ref{eq:cfg}), but the roles differ: $\lambda$ in CFG scales
+the effect of conditioning vs.\ no conditioning, whereas $g$ here
+scales the shift from one speaker's conditioning toward another's.
+We use a distinct symbol to reflect this difference.
+Because computing $v_{\rm style}$ requires two transformer forward
+passes per step (one for each conditioning mel), the computational
+cost doubles relative to standard inference.
 
 \textbf{Results.} We swept $g\in\{0.25,0.5,0.75,1.0,1.5\}$.
 At $g=0.5$, $s=-1.0$: WER\,=\,0\,\%, SIM-A\,=\,0.843,
 SIM-B\,=\,\textbf{0.858}, MCD\,=\,809. SIM-B rises by $+0.087$ above
-baseline with zero intelligibility loss-the best style transfer of all four
+baseline with zero intelligibility loss - the best style transfer of all four
 methods.  At $g\geq1.0$ intelligibility collapses (WER\,$\geq$\,70\,\%) as
 the vector field is extrapolated beyond the style manifold.
 
@@ -570,18 +608,27 @@ the vector field is extrapolated beyond the style manifold.
 Two additional variants were tested but failed to produce intelligible style
 transfer at any non-trivial parameter setting.
 
-\textbf{Method C (Scheduled Conditioning)} switches the conditioning mel from
-$\mathbf{m}_B$ to $\mathbf{m}_A$ at a threshold timestep $t^*$:
+\textbf{Method C (Scheduled Conditioning)} modifies the conditioning mel
+that is fed to the transformer's vector field $v_t$
+(Eq.~\ref{eq:ode}) at each ODE step, switching it from the style
+reference to the identity reference at a threshold timestep $t^*$:
 \begin{equation}
   c(t) = \begin{cases} \mathbf{m}_B & t < t^* \\ \mathbf{m}_A & t \geq t^* \end{cases}
   \label{eq:methc}
 \end{equation}
+The hope is that conditioning on $\mathbf{m}_B$ during early steps
+imprints $B$'s stylistic characteristics, while switching to
+$\mathbf{m}_A$ for the remaining steps restores $A$'s identity.
+However, as discussed in Section~\ref{sec:baseline}, early ODE steps
+($t\approx 0$) primarily resolve coarse structure such as word
+identity, not fine-grained speaker traits - so conditioning on
+$\mathbf{m}_B$ early actually imprints $B$'s identity wholesale,
+leaving too little integration time for $\mathbf{m}_A$ to recover.
 All $t^*>0$ cause severe WER degradation
 (20-70\,\%), and informal listening confirms the model adopts $B$'s voice
 wholesale rather than borrowing stylistic attributes-identity
 \emph{replacement}, not style transfer.  The sharp conditioning discontinuity
-overwhelms the Euler integrator; a smooth cosine schedule may mitigate this
-and is left as future work.
+overwhelms the Euler integrator; a smooth cosine schedule may mitigate this, but is left as future work.
 
 \textbf{Method D (Noise Statistics Transfer)} rescales $x_0$ to match
 $\mathbf{m}_B$'s global mean and variance:
@@ -655,7 +702,7 @@ than clean style separation.
 Two of the authors independently listened to selected samples from each
 experiment.  Key observations:
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Baseline} (Section~\ref{sec:baseline}): intelligible but
+  \item \textbf{Baseline Reproduction} (Section~\ref{sec:baseline}): intelligible but
     with a slightly robotic, ``phone-call'' quality (naturalness~3/5).
     A noticeable accent shift toward British English was observed relative
     to the American-accented reference.
@@ -674,7 +721,7 @@ experiment.  Key observations:
     strong American phonetic features (e.g.\ rhotic /r/) with only a hint
     of reference~B's characteristics.  Fully intelligible (5/5).
   \item \textbf{Method~B} ($g{=}0.5$, $s{=}{-}1$): the most perceptible
-    style transfer-the voice retains speaker~A's identity but carries
+    style transfer - the voice retains speaker~A's identity but carries
     reference~B's energy contour and prosodic accent (style acquisition
     3-3.5/5).  Fully intelligible (5/5); minor electronic noise at the
     utterance onset.
@@ -683,7 +730,7 @@ experiment.  Key observations:
     (naturalness~2/5); at sway$=-1$ intelligibility degrades further.
     In both cases the voice sounds like speaker~B rather than~A
     (style acquisition~4/5), confirming that scheduled conditioning
-    produces identity {\em replacement} rather than style transfer-the
+    produces identity {\em replacement} rather than style transfer - the
     model adopts~B's voice wholesale instead of borrowing only stylistic
     attributes.
   \item \textbf{Method~D}: even at $\alpha{=}0$ (no style injection),
