@@ -67,7 +67,7 @@ You need a short (4–10 s), clean WAV recording of a single speaker for voice c
 ### 6. Run the English baseline
 
 ```bash
-python scripts/run_all_phases.py \
+python scripts/1_baseline.py \
     --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav \
     --phases 1
 ```
@@ -104,12 +104,12 @@ Both improvements address this gap directly.
 | English baseline (Phase 1) | Done |
 | Sway Sampling ablation (Phase 2) | Done |
 | CFG strength ablation (Phase 2) | Done |
-| Style transfer — mel injection (`run_phase4.py`) | Done |
-| Method A — SDEdit noise injection (`run_noise_inject.py`) | Done (315-run fine grid) |
-| Method B — Style Guidance 2-pass ODE (`run_style_guidance.py`) | Done |
-| Method C — Scheduled Conditioning (`run_scheduled_cond.py`) | Done |
-| Method D — Noise Stats Transfer (`run_noise_stats.py`) | Done |
-| Cross-method comparison (`compare_methods.py`) | Done |
+| Style transfer — mel injection (`2_extension1.py`) | Done |
+| Method A — SDEdit noise injection (`3_method_A.py`) | Done (315-run fine grid) |
+| Method B — Style Guidance 2-pass ODE (`4_method_B.py`) | Done |
+| Method C — Scheduled Conditioning (`5_method_C.py`) | Done |
+| Method D — Noise Stats Transfer (`6_method_D.py`) | Done |
+| Cross-method comparison (`7_graphs.py --graphs comparison`) | Done |
 | Metrics — WER / SIM-A / SIM-B / MCD | Done |
 | Plots | Done |
 | Paper (`paper.tex` / `paper.pdf`) | Done |
@@ -118,10 +118,30 @@ Both improvements address this gap directly.
 
 ## Usage
 
+### Run the full experiment (recommended)
+
+```bash
+python scripts/8_run_experiment.py
+```
+
+This runs all 7 steps end-to-end (baseline, extensions, all methods, graphs). Supports `--steps` and `--skip` flags to select or skip individual steps.
+
+### Run individual steps
+
+```bash
+python scripts/1_baseline.py           # Step 1: English baseline + sway/CFG ablations + eval + plots
+python scripts/2_extension1.py         # Step 2: Extension 1 — direct mel injection
+python scripts/3_method_A.py           # Step 3: Method A — SDEdit noise injection (315-run grid)
+python scripts/4_method_B.py           # Step 4: Method B — style guidance (2-pass ODE)
+python scripts/5_method_C.py           # Step 5: Method C — scheduled conditioning blend
+python scripts/6_method_D.py           # Step 6: Method D — noise statistics transfer
+python scripts/7_graphs.py --graphs all  # Step 7: Generate all graphs
+```
+
 ### English zero-shot baseline
 
 ```bash
-python scripts/run_all_phases.py \
+python scripts/1_baseline.py \
     --ref_audio path/to/reference.wav \
     --phases 1
 ```
@@ -131,7 +151,7 @@ Generates 5 English samples to confirm the pipeline works.
 ### Sway Sampling + CFG ablations (reproduce paper results)
 
 ```bash
-python scripts/run_all_phases.py \
+python scripts/1_baseline.py \
     --ref_audio path/to/reference.wav \
     --phases 2
 ```
@@ -139,7 +159,7 @@ python scripts/run_all_phases.py \
 ### Style transfer — direct mel injection
 
 ```bash
-python scripts/run_phase4.py \
+python scripts/2_extension1.py \
     --identity path/to/identity_speaker.wav \
     --emotion  path/to/style_speaker.wav \
     --text "The situation has become completely unacceptable."
@@ -150,9 +170,9 @@ python scripts/run_phase4.py \
 ### Method A — SDEdit noise injection
 
 ```bash
-python scripts/run_noise_inject.py
-python scripts/run_noise_inject.py --device cpu
-python scripts/run_noise_inject.py --resume   # skip already-generated WAVs
+python scripts/3_method_A.py
+python scripts/3_method_A.py --device cpu
+python scripts/3_method_A.py --resume   # skip already-generated WAVs
 ```
 
 Fine-grained sweep: 15 alpha values (0.00–0.70) × 21 sway values (-1.0–1.0) = 315 runs.
@@ -163,8 +183,8 @@ tables. Results go to `results/noise_inject/method_A/`.
 ### Method B — Style Guidance (2-pass ODE extrapolation)
 
 ```bash
-python scripts/run_style_guidance.py
-python scripts/run_style_guidance.py --device cpu
+python scripts/4_method_B.py
+python scripts/4_method_B.py --device cpu
 ```
 
 Sweeps guidance_scale ∈ {0.0, 0.5, 1.0, 1.5, 2.0} × sway ∈ {-1.0, 0.0} (10 runs).
@@ -174,8 +194,8 @@ Runs the transformer twice per ODE step (identity + style) and extrapolates:
 ### Method C — Scheduled Conditioning Blend
 
 ```bash
-python scripts/run_scheduled_cond.py
-python scripts/run_scheduled_cond.py --device cpu
+python scripts/5_method_C.py
+python scripts/5_method_C.py --device cpu
 ```
 
 Sweeps switch_point ∈ {0.0, 0.25, 0.5, 0.75, 1.0} × sway ∈ {-1.0, 0.0} (10 runs).
@@ -186,22 +206,23 @@ early steps (t < t*) use style B, late steps use identity A. Results go to
 ### Method D — Noise Statistics Transfer
 
 ```bash
-python scripts/run_noise_stats.py
-python scripts/run_noise_stats.py --device cpu
+python scripts/6_method_D.py
+python scripts/6_method_D.py --device cpu
 ```
 
 Sweeps alpha ∈ {0.0, 0.1, 0.2, 0.3, 0.5, 0.7} × sway ∈ {-1.0, 0.0} (12 runs).
 Rescales starting noise to match mel_B's global statistics (mean, std) without
 copying specific frames. Results go to `results/noise_inject/method_D/`.
 
-### Cross-method comparison (run after all methods)
+### Cross-method comparison & graphs
 
 ```bash
-python scripts/compare_methods.py --methods A B C D
+python scripts/7_graphs.py --graphs comparison
+python scripts/7_graphs.py --graphs all
+python scripts/7_graphs.py --graphs baseline extension1 method_A method_B
 ```
 
-Reads `results_metrics.csv` from each method directory, generates comparison plots
-(trends, scatter, WER-vs-SIM-B), a combined CSV, and a mathematical chapter.
+Generates comparison plots (trends, scatter, WER-vs-SIM-B), combined CSV, and per-method graphs.
 Results go to `results/noise_inject/comparison/`.
 
 ---
@@ -211,7 +232,7 @@ Results go to `results/noise_inject/comparison/`.
 ### Sway Sampling (reproduces Figure 3 of the paper)
 
 ```bash
-python scripts/run_all_phases.py \
+python scripts/1_baseline.py \
     --ref_audio path/to/ref.wav \
     --phases 2 5
 ```
@@ -225,22 +246,22 @@ Runs as part of Phase 2 (above). Sweeps `cfg ∈ {1.0, 1.5, 2.0, 2.5, 3.0}`.
 ### Style transfer weight (direct mel injection)
 
 ```bash
-python scripts/run_phase4.py   # sweeps w in {0.0, 0.25, 0.50, 0.75, 1.00}
+python scripts/2_extension1.py   # sweeps w in {0.0, 0.25, 0.50, 0.75, 1.00}
 ```
 
 ### Noise injection sweep (Method A)
 
 ```bash
-python scripts/run_noise_inject.py   # sweeps alpha × sway (315 total runs)
+python scripts/3_method_A.py   # sweeps alpha × sway (315 total runs)
 ```
 
 ### Extended sweeps (Methods B, C, D)
 
 ```bash
-python scripts/run_style_guidance.py   # guidance_scale × sway (10 runs)
-python scripts/run_scheduled_cond.py   # switch_point × sway (10 runs)
-python scripts/run_noise_stats.py      # alpha × sway (12 runs)
-python scripts/compare_methods.py      # aggregates all results
+python scripts/4_method_B.py          # guidance_scale × sway (10 runs)
+python scripts/5_method_C.py          # switch_point × sway (10 runs)
+python scripts/6_method_D.py          # alpha × sway (12 runs)
+python scripts/7_graphs.py --graphs comparison   # aggregates all results
 ```
 
 ---
@@ -301,15 +322,15 @@ project/
 ├── future_work.txt                # Notes on future improvements for publication
 ├── Presentation F5-TTS v2.pptx    # Project presentation slides
 ├── scripts/
-│   ├── run_all_phases.py          # Phases 1+2+5: baseline, ablations, eval
-│   ├── run_phase4.py              # Style transfer: direct mel injection
-│   ├── run_noise_inject.py        # Method A — SDEdit noise injection (315-run grid)
-│   ├── run_style_guidance.py      # Method B — 2-pass ODE style guidance
-│   ├── run_scheduled_cond.py      # Method C — Scheduled conditioning blend
-│   ├── run_noise_stats.py         # Method D — Noise statistics transfer
-│   ├── compare_methods.py         # Cross-method comparison plots + CSV
-│   ├── compute_noise_inject_metrics.py  # Metrics for pre-generated audio
-│   └── finalize_noise_inject.py   # Parse log → CSV + plot (legacy)
+│   ├── 1_baseline.py              # Step 1: Baseline reproduction (phases 1,2,4,5,6)
+│   ├── 2_extension1.py            # Step 2: Extension 1 — direct mel injection
+│   ├── 3_method_A.py              # Step 3: Method A — SDEdit noise injection (315-run grid)
+│   ├── 4_method_B.py              # Step 4: Method B — 2-pass ODE style guidance
+│   ├── 5_method_C.py              # Step 5: Method C — Scheduled conditioning blend
+│   ├── 6_method_D.py              # Step 6: Method D — Noise statistics transfer
+│   ├── 7_graphs.py                # Step 7: All graph generation (CLI: --graphs)
+│   ├── 8_run_experiment.py        # Main orchestrator — runs steps 1-7
+│   └── old/                       # Original scripts (preserved for reference)
 ├── samples/                       # Hebrew reference audio files
 ├── F5-TTS/                        # Cloned F5-TTS repo (gitignored)
 ├── .venv/                         # Virtual environment (gitignored)

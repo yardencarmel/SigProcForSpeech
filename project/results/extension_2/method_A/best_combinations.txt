@@ -1,0 +1,21 @@
+Method A -- Best Combinations (WER <= 20.0%)
+==========================================================================================
+ alpha    sway    WER%    SIM-A    SIM-B    MCD-A  Whisper
+------------------------------------------------------------------------------------------
+  0.05    -0.9     0.0   0.8736   0.7825   721.79  "I don't really care what you call me. I've been a silent spectator watching species evolve, empires rise and fall."
+  0.00    -0.5     0.0   0.8965   0.7759   705.59  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.6     0.0   0.8895   0.7727   711.72  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -1.0     0.0   0.8928   0.7708   726.41  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.9     0.0   0.8915   0.7706   722.06  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.4     0.0   0.8846   0.7676   702.17  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.8     0.0   0.8899   0.7668   719.02  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.7     0.0    0.891   0.7665   714.88  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.0     0.0    0.805   0.7343   742.19  "I don't really care what you call me. I've been a silent spectator, watching species evolve. Empires rise and fall."
+  0.00    -0.3     0.0   0.8589   0.7274   699.51  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.2     0.0   0.8391   0.7225   717.15  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.00    -0.1     0.0   0.8301   0.7222   739.14  "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall."
+  0.05    -1.0     0.0    0.843   0.7105   776.28  "I don't really care what you call me. I've been a silent spectator. Watching species evolve. Empires rise and fall."
+  0.05    -0.6     0.0   0.7651   0.7028   663.07  "I don't really care what you call me. I've been a silent spectator watching species evolve. Empires rise and fall."
+  0.05    -0.8     0.0   0.7868   0.6894   773.94  "I don't really care what you call me. I've been a silent spectator watching species evolve. Empires rise and fall."
+  0.00    +0.2    20.0   0.6997    0.686   762.53  "I don't really hear what you call me. I've been sentenced to that. Watching species evolve. Empires rise and fall."
+  0.05    -0.7    10.0   0.7295   0.6657   715.09  "Others can't really care what you call me. I've been a silent spectator watching species evolve. Empires rise and fall."

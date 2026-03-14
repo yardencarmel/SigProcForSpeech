@@ -222,14 +222,33 @@ def print_next_steps(project_dir, venv_dir):
    cd "{project_dir}"
    {activate_cmd}
 
-2. Run the English baseline:
-   python scripts/run_all_phases.py --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav --phases 1
+2. Run the FULL experiment end-to-end (all steps):
+   python scripts/8_run_experiment.py --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav
 
-3. Run style transfer (direct mel injection):
-   python scripts/run_phase4.py
+   Or run specific steps only (e.g. baseline + extension 1):
+   python scripts/8_run_experiment.py --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav --steps 1 2
 
-4. Run noise injection sweep:
-   python scripts/run_noise_inject.py
+   Available steps:
+     1  Baseline reproduction (English TTS + sway/CFG ablations + eval)
+     2  Extension 1: Direct Mel Injection
+     3  Extension 2, Method A: SDEdit Noise Injection
+     4  Extension 2, Method B: Style Guidance (2-Pass ODE)
+     5  Extension 2, Method C: Scheduled Conditioning Blend
+     6  Extension 2, Method D: Noise Statistics Transfer
+     7  All graphs + cross-method comparison
+
+3. Or run individual steps directly:
+   python scripts/1_baseline.py --ref_audio F5-TTS/src/f5_tts/infer/examples/basic/basic_ref_en.wav
+   python scripts/2_extension1.py
+   python scripts/3_method_A.py
+   python scripts/4_method_B.py
+   python scripts/5_method_C.py
+   python scripts/6_method_D.py
+   python scripts/7_graphs.py --graphs all
+
+4. Generate only specific graphs:
+   python scripts/7_graphs.py --graphs baseline comparison
+   python scripts/7_graphs.py --graphs method_A method_B
 """)
 
 

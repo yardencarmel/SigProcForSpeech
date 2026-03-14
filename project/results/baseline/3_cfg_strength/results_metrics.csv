@@ -1,0 +1,16 @@
+cfg_strength,sentence_id,transcript,output_wav,wer,sim_o
+1.0,ab01,The cat sat on the mat and looked out the window.,results\baseline\3_cfg_strength\audio\ab01_cfg1.0.wav,0.0,0.8145
+1.0,ab02,Scientists have discovered a new species of deep-sea fish.,results\baseline\3_cfg_strength\audio\ab02_cfg1.0.wav,11.11,0.8547
+1.0,ab03,Flow matching with diffusion transformers achieves excellent results.,results\baseline\3_cfg_strength\audio\ab03_cfg1.0.wav,0.0,0.8836
+1.5,ab01,The cat sat on the mat and looked out the window.,results\baseline\3_cfg_strength\audio\ab01_cfg1.5.wav,0.0,0.7871
+1.5,ab02,Scientists have discovered a new species of deep-sea fish.,results\baseline\3_cfg_strength\audio\ab02_cfg1.5.wav,11.11,0.8569
+1.5,ab03,Flow matching with diffusion transformers achieves excellent results.,results\baseline\3_cfg_strength\audio\ab03_cfg1.5.wav,0.0,0.8617
+2.0,ab01,The cat sat on the mat and looked out the window.,results\baseline\3_cfg_strength\audio\ab01_cfg2.0.wav,0.0,0.7869
+2.0,ab02,Scientists have discovered a new species of deep-sea fish.,results\baseline\3_cfg_strength\audio\ab02_cfg2.0.wav,11.11,0.8608
+2.0,ab03,Flow matching with diffusion transformers achieves excellent results.,results\baseline\3_cfg_strength\audio\ab03_cfg2.0.wav,0.0,0.8576
+2.5,ab01,The cat sat on the mat and looked out the window.,results\baseline\3_cfg_strength\audio\ab01_cfg2.5.wav,0.0,0.7864
+2.5,ab02,Scientists have discovered a new species of deep-sea fish.,results\baseline\3_cfg_strength\audio\ab02_cfg2.5.wav,11.11,0.8439
+2.5,ab03,Flow matching with diffusion transformers achieves excellent results.,results\baseline\3_cfg_strength\audio\ab03_cfg2.5.wav,0.0,0.8635
+3.0,ab01,The cat sat on the mat and looked out the window.,results\baseline\3_cfg_strength\audio\ab01_cfg3.0.wav,0.0,0.7763
+3.0,ab02,Scientists have discovered a new species of deep-sea fish.,results\baseline\3_cfg_strength\audio\ab02_cfg3.0.wav,11.11,0.8406
+3.0,ab03,Flow matching with diffusion transformers achieves excellent results.,results\baseline\3_cfg_strength\audio\ab03_cfg3.0.wav,12.5,0.8613

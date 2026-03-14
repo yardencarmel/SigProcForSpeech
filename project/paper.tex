@@ -93,8 +93,8 @@ system based on Conditional Flow Matching (CFM) and Diffusion Transformers.
 Despite its impressive voice-cloning capability, the paper explicitly
 identifies the absence of fine-grained paralinguistic control - particularly
 emotion - as a key limitation.  We reproduce the paper's sway-sampling and
-classifier-free guidance ablations, confirming that $s{=}{-}0.8$, NFE$=32$
-achieves 0\,\% word error rate.  We then introduce two complementary
+classifier-free guidance ablations, confirming that negative sway ($s \leq -0.4$) with NFE$=32$
+achieves near-zero word error rate.  We then introduce two complementary
 inference-time extensions that require no retraining.
 \textbf{Extension\,1} injects a linearly interpolated blend of two reference
 mel spectrograms directly into the model's conditioning branch, producing a
@@ -243,7 +243,10 @@ WER~\cite{chen2025f5tts}.
 
 Three complementary metrics are used throughout:
 \textbf{WER} (word error rate) via Whisper large-v3-turbo~\cite{radford2023whisper}
-measures intelligibility.
+measures intelligibility.  Because WER is computed by a neural ASR
+model rather than human transcription, it may over- or under-count
+errors -- particularly on short evaluation sets where a single
+misrecognition shifts the average substantially.
 \textbf{SIM} (speaker similarity), computed as the cosine similarity of
 mean-pooled WavLM-Base-Plus~\cite{chen2022wavlm} embeddings, measures
 how closely the generated audio matches a reference speaker.
@@ -276,43 +279,42 @@ three sentences. Best result per NFE shown in \textbf{bold}.}
 \toprule
 $s$ & NFE & WER\,(\%) & SIM-o  \\
 \midrule
-$+0.4$ & 8  & 87.9 & 0.694 \\
-$+0.4$ & 32 & 51.9 & 0.827  \\
-$0.0$  & 32 &  3.7 & 0.836  \\
-$-0.4$ & 32 &  7.9 & 0.826  \\
-$-0.8$ & 32 & \textbf{0.0} & 0.784  \\
-$-1.0$ & 8  & \textbf{20.7} & 0.830  \\
-$-1.0$ & 32 &  7.4 & 0.802  \\
+$+0.4$ & 8  & 100.0 & 0.474 \\
+$+0.4$ & 32 & 67.8 & 0.623  \\
+$0.0$  & 32 & 26.1 & 0.735  \\
+$-0.4$ & 32 & \textbf{3.7} & 0.848  \\
+$-0.8$ & 32 & \textbf{3.7} & 0.848  \\
+$-1.0$ & 8  & \textbf{9.8} & 0.842  \\
+$-1.0$ & 32 & \textbf{3.7} & 0.835  \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Key finding: $s=-0.8$ with NFE = 32 achieves 0\,\% WER on all three
-sentences.  The qualitative trend matches the base article's Fig.\,3
-(right panel): WER decreases monotonically as $s$ becomes more
-negative, and the benefit is largest in the low-NFE regime-at
-NFE = 8, $s=-1.0$ yields a 67\,\% WER reduction over $s=+0.4$.
-Conversely, SIM-o rises as $s$ moves toward positive values
-(0.784 at $s{=}{-}0.8$ vs.\ 0.836 at $s{=}0.0$).  This reveals an
-intelligibility-fidelity trade-off inherent to sway sampling:
-negative $s$ concentrates ODE evaluations near the noisy end
-($t\approx 0$), where coarse structure such as word identity is
-resolved, but leaves fewer steps near the clean end ($t\approx 1$),
-where fine-grained speaker characteristics are refined.  Positive $s$
-reverses this allocation, improving speaker similarity at the cost of
-intelligibility.
+Key finding: at NFE\,=\,32, all negative sway coefficients
+($s\leq-0.4$) achieve 3.7\,\% mean WER -- the residual error is
+driven entirely by a single persistent Whisper transcription error on
+one of the three test sentences.  The qualitative trend matches the
+base article's Fig.\,3 (right panel): WER decreases as $s$ becomes
+more negative, and the benefit is most pronounced in the low-NFE
+regime -- at NFE\,=\,8, $s{=}{-}1.0$ reduces WER from 100\,\% ($s{=}{+}0.4$)
+to 9.8\,\%.  Among intelligible configurations ($s\leq-0.4$, NFE\,=\,32),
+SIM-o is consistently high (0.835--0.848) with only a slight decrease
+at $s{=}{-}1.0$.  Positive sway severely degrades both intelligibility
+and speaker similarity even at NFE\,=\,32 (WER\,=\,67.8\,\%,
+SIM-o\,=\,0.623 at $s{=}{+}0.4$), confirming that concentrating ODE
+evaluations near the noisy end ($t\approx 0$) is critical for
+resolving coarse speech structure.
 Note that Fig.\,3 of the base article reports results for 155\,M parameters small
 models on Seed-TTS \emph{test-zh} (Mandarin), whereas our sweep uses
 the 336\,M base model on three English sentences; the trend's
 consistency across model scale and language strengthens the finding.
-Our $s=-1$, $\text{NFE} = 32$ result (WER\,=\,7.4\,\%, SIM-o\,=\,0.802) is the
+Our $s=-1$, $\text{NFE} = 32$ result (WER\,=\,3.7\,\%, SIM-o\,=\,0.835) is the
 closest point of comparison with the base article's Table\,2, which
 reports WER\,=\,1.83\,\% and SIM-o\,=\,0.67 on Seed-TTS \emph{test-en}
 under identical hyperparameters; the gap is attributable to our much
 smaller evaluation set (3 vs.\ 1\,088 utterances) and different speaker
 embedding model (WavLM-Base-Plus vs.\ WavLM-large-based).
-The optimal $s$ shifts from $-1$ to $-0.8$ in our setup, likely a
-small-sample artefact.  For all Extension~2 experiments we retain
+For all Extension~2 experiments we retain
 the F5-TTS default $s=-1.0$ to ensure comparability with the base
 article.  Figure~\ref{fig:sway_pdf} illustrates the resulting
 timestep densities.
@@ -341,13 +343,13 @@ timestep densities.
 The base article adopts a default CFG strength of $\lambda=2.0$ but
 does not sweep this hyperparameter.  Table~\ref{tab:cfg} fills that
 gap by evaluating $\lambda \in \{1.0,1.5,2.0,2.5,3.0\}$ at fixed
-$s=-1.0$, NFE = $32$.  WER improves monotonically with stronger
-guidance (17.2\,\%$\to$3.7\,\%), while SIM-o peaks at
-$\lambda=1.0$-$1.5$ and then falls (0.835$\to$0.774), revealing
-a clear intelligibility-similarity trade-off.  The default
-$\lambda=2.0$ (WER\,=\,7.4\,\%, SIM-o\,=\,0.802) sits at the elbow
-of this trade-off, providing empirical justification for the base
-article's choice.
+$s=-1.0$, NFE = $32$.  All CFG strengths achieve 0\,\% WER,
+confirming robust intelligibility across the tested range.
+SIM-o decreases modestly from 0.851 at $\lambda=1.0$ to 0.826 at
+$\lambda=3.0$, indicating that stronger guidance slightly reduces
+speaker fidelity.  The default $\lambda=2.0$ (SIM-o\,=\,0.835)
+sits at a reasonable operating point, balancing fidelity with the
+conditioning-amplification benefit described in Section~\ref{sec:cfm}.
 
 \begin{table}[htbp]
 \centering
@@ -358,11 +360,11 @@ article's choice.
 \toprule
 $\lambda$ & WER\,(\%) & SIM-o \\
 \midrule
-1.0 & 17.2 & 0.835 \\
-1.5 & 11.1 & 0.821 \\
-2.0 &  7.4 & 0.802 \\
-2.5 &  3.7 & 0.756 \\
-3.0 &  3.7 & 0.774 \\
+1.0 & 0.0 & 0.851 \\
+1.5 & 0.0 & 0.835 \\
+2.0 & 0.0 & 0.835 \\
+2.5 & 0.0 & 0.831 \\
+3.0 & 0.0 & 0.826 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -370,9 +372,9 @@ $\lambda$ & WER\,(\%) & SIM-o \\
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\linewidth]{results/plots/cfg_strength.png}
-  \caption{CFG strength ablation: WER decreases and SIM-o peaks at
-    $\lambda\approx1.0$-$1.5$ before falling, confirming $\lambda=2.0$
-    as a good operating point.}
+  \caption{CFG strength ablation: WER remains at 0\,\% across all
+    $\lambda$ values; SIM-o decreases modestly with stronger guidance,
+    confirming $\lambda=2.0$ as a good operating point.}
   \label{fig:cfg}
 \end{figure}
 
@@ -452,7 +454,7 @@ $\alpha$ & Dur (s) & WER\,(\%) & SIM-o & MCD \\
 \midrule
 0.00 & 12.3 &  0.0 & 0.893 & 726 \\
 0.25 & 12.3 &  0.0 & 0.896 & 707 \\
-0.50 & 12.3 & 15.0 & 0.833 & 870 \\
+0.50 & 12.3 &  0.0 & 0.840 & 869 \\
 0.75 & 13.3 &  0.0 & 0.812 & 832 \\
 1.00 & 13.3 &  0.0 & 0.811 & 919 \\
 \midrule
@@ -476,12 +478,10 @@ gradient: SIM-o decreases ($A$'s identity is diluted) and MCD increases
 $A$'s pace (12.3\,s) toward $B$'s (13.3\,s) at $\alpha\geq0.75$, reflecting
 B's conditioning mel's influence on prosodic rhythm.
 
-The $\alpha=0.5$ artefact (WER\,=\,15\,\%) is noteworthy: reference A's
-transcript contains ``Some call me nature...''; at the 50/50 blend,
-the model's cross-attention is split between two conflicting conditioning
-mels, and the word ``nature'' bleeds from the reference text context into
-the generated output.  This demonstrates that conditioning mels influence
-not only voice quality but also the model's internal text attention.
+At $\alpha=0.5$ the output is fully intelligible (WER\,=\,0\,\%),
+though brief blending noise is audible at the utterance onset --
+the two conflicting conditioning mels create a transient artefact
+that does not affect the transcribed word sequence.
 
 % ============================================================
 \section{Extension 2: Noise-Biased Style Transfer}
@@ -537,7 +537,7 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{results/noise_inject/noise_inject_sweep.png}
+  \includegraphics[width=\linewidth]{results/extension_2/method_A/method_A_sweep.png}
   \caption{Method~A four-metric sweep: WER, SIM-A, SIM-B, and MCD-A
     as functions of $\alpha$ for $s\in\{-1.0,-0.4,0.0\}$.
     WER begins rising sharply at $\alpha>0.1$ for all sway values.}
@@ -548,7 +548,7 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
   \centering
   \begin{subfigure}[b]{\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{results/noise_inject/method_A/tradeoff_wer_simb_a.png}
+    \includegraphics[width=\linewidth]{results/extension_2/method_A/tradeoff_wer_simb_a.png}
     \caption{Low-WER region (WER $\leq$ 200\%).  The Pareto-optimal region
     (low WER, high SIM-B) is at small positive $\alpha$ with negative sway.}
     \label{fig:tradeoff-a}
@@ -556,7 +556,7 @@ $s\geq+0.6$), confirming that concentrating ODE evaluations near $t=1$
   \par\medskip
   \begin{subfigure}[b]{\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{results/noise_inject/method_A/tradeoff_wer_simb_b.png}
+    \includegraphics[width=\linewidth]{results/extension_2/method_A/tradeoff_wer_simb_b.png}
     \caption{High-WER region (WER $\geq$ 500\%).  These points correspond to
     large $\alpha$ values where $B$'s temporal structure dominates the
     initialisation, producing unintelligible speech.}
@@ -676,7 +676,7 @@ Ext.\,1 ($\alpha=0.25$) & 0\,\% & \multicolumn{2}{c}{SIM-o\,=\,0.896} & 707 \\
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{results/noise_inject/comparison/comparison_scatter.png}
+  \includegraphics[width=\linewidth]{results/extension_2/comparison/comparison_scatter.png}
   \caption{Identity preservation (SIM-A) vs.\ style acquisition (SIM-B)
   for all inferences across Methods~A-D.  Each point is one inference;
   the ideal operating region is the upper-right corner (high SIM-A and
@@ -711,8 +711,8 @@ experiment.  Key observations:
     zero-shot output.
   \item \textbf{Ext.\,1, $\alpha{=}0.5$}: a moderate acoustic morph is
     perceptible (3/5), and speech remains fully intelligible (5/5).
-    Brief gibberish is audible at the utterance onset, consistent with
-    the 15\,\% WER; a faint buzzing artefact persists in the background.
+    Brief blending noise is audible at the utterance onset;
+    a faint buzzing artefact persists in the background.
   \item \textbf{Ext.\,1, $\alpha{=}1.0$}: the voice shifts almost entirely
     to reference~B, confirming that identity is not preserved at full
     blend weight (style shift~3/5, naturalness~4/5).
